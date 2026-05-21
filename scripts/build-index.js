@@ -1,0 +1,10 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const { buildWikiIndex } = require('../src/wikiIndexer');
+const wikiPath = process.argv[2] || '/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki';
+const index = buildWikiIndex(wikiPath);
+const out = path.join(wikiPath, 'Raw', 'app-index', 'hapa-wiki-viewer-index.json');
+fs.mkdirSync(path.dirname(out), { recursive: true });
+fs.writeFileSync(out, JSON.stringify({ generatedAt: index.generatedAt, stats: index.stats, facets: index.facets, graph: index.graph, cards: index.cards, artifacts: index.artifacts }, null, 2));
+console.log(`Indexed ${index.stats.markdownFiles} markdown files, ${index.stats.links} links, ${index.stats.cards} cards, ${index.stats.artifactAssets || 0} artifact media assets.`);
+console.log(out);

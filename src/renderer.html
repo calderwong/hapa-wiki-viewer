@@ -1,0 +1,180 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' file: data:; media-src 'self' file: data: blob:;">
+  <title>Hapa Wiki Viewer</title>
+  <link rel="stylesheet" href="renderer.css" />
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="sigil">H</div>
+        <div><h1>Hapa Wiki</h1><p id="rootPath">Loading…</p></div>
+      </div>
+      <div class="toolbar">
+        <button id="openFolder">Open Folder</button>
+        <button id="reindex">Reindex</button>
+      </div>
+      <input id="search" placeholder="Search pages, cards, nodes…" autofocus />
+      <div class="filters">
+        <select id="sectionFilter"><option value="">All sections</option></select>
+        <select id="kindFilter"><option value="">All kinds</option></select>
+        <select id="statusFilter"><option value="">All statuses</option></select>
+      </div>
+      <div class="quickbar" id="quickbar"></div>
+      <div class="toolbar discoverbar">
+        <button id="randomPage">Random</button>
+        <button id="discoverNodes">Nodes</button>
+        <button id="discoverNames">Names</button>
+        <button id="discoverCards">Cards</button>
+      </div>
+      <div class="stats" id="stats"></div>
+      <nav id="tree"></nav>
+    </aside>
+    <main class="content">
+      <div class="topbar">
+        <button id="back">←</button>
+        <button id="forward">→</button>
+        <button id="home">Home</button>
+        <button id="showFinder">Show in Finder</button>
+        <span class="tab-divider">|</span>
+        <button id="togglePortal" class="view-tab active">Portal</button>
+        <button id="toggleCards" class="view-tab">Cards</button>
+        <button id="toggleTimeline" class="view-tab">Timeline</button>
+        <button id="toggleDoc" class="view-tab">Document</button>
+        <button id="toggleSound" class="view-tab sound-toggle" aria-pressed="true">SFX On</button>
+        <span class="tab-divider">|</span>
+        <button id="detachPage" class="view-tab" style="display:none;">Detach</button>
+        <button id="editPage" class="view-tab">Edit</button>
+        <button id="savePage" class="view-tab" style="display:none;">Save</button>
+        <button id="cancelEdit" class="view-tab" style="display:none;">Cancel</button>
+        <span id="crumb"></span>
+      </div>
+      <section id="portalView" class="view-section"></section>
+      <section id="cardsView" class="view-section" style="display:none;">
+        <div class="cards-shell">
+          <div class="cards-hero">
+            <div>
+              <div class="kicker">Card Vector Library</div>
+              <h1>Hapa Card Viewer</h1>
+              <p>Browse live Hapa Dev Proto media augments, canonical cards, and retrieval-ready wiki entries.</p>
+            </div>
+            <div id="cardStats" class="mission-readout"></div>
+          </div>
+          <div class="cards-controls">
+            <input id="cardSearch" class="cards-search" placeholder="Search cards, media, topics, retrieval ids..." />
+            <select id="cardTypeFilter" class="cards-select"><option value="">All card types</option></select>
+            <select id="cardMediaFilter" class="cards-select">
+              <option value="">All media</option>
+              <option value="image">Image cover</option>
+              <option value="video">Video cover</option>
+              <option value="none">No cover</option>
+            </select>
+            <select id="cardStatusFilter" class="cards-select"><option value="">All statuses</option></select>
+            <select id="cardTierFilter" class="cards-select">
+              <option value="">All tiers</option>
+              <option value="mythic">Mythic</option>
+              <option value="legendary">Legendary</option>
+              <option value="epic">Epic</option>
+              <option value="rare">Rare</option>
+              <option value="uncommon">Uncommon</option>
+              <option value="common">Common</option>
+            </select>
+            <select id="cardSort" class="cards-select">
+              <option value="quality">Sort by quality</option>
+              <option value="media">Media first</option>
+              <option value="title">Title A-Z</option>
+              <option value="type">Type</option>
+            </select>
+            <button id="cardDensityToggle" class="cards-tool-button">Detail</button>
+          </div>
+          <div class="cards-workspace">
+            <div>
+              <div id="cardResultMeta" class="result-meta"></div>
+              <div id="cardGrid" class="card-grid"></div>
+            </div>
+            <aside id="cardInspector" class="card-inspector"></aside>
+          </div>
+        </div>
+      </section>
+      <section id="timelineView" class="view-section" style="display:none;">
+        <div class="timeline-container">
+          <div class="timeline-header">
+            <div>
+              <h1>Operational Timeline</h1>
+              <p>Chronological milestones and mythic epochs of the Hapa ecosystem</p>
+            </div>
+          </div>
+          <div class="timeline-controls">
+            <input id="timelineSearch" class="timeline-search" placeholder="Search events..." />
+            <select id="timelineEraFilter" class="timeline-select">
+              <option value="">All Eras</option>
+            </select>
+            <div class="timeline-zoom-control">
+              <span>Scale Zoom:</span>
+              <input type="range" id="timelineZoomSlider" class="timeline-zoom-slider" min="0" max="25" value="0" />
+              <span id="timelineZoomVal">Compact</span>
+            </div>
+          </div>
+          <div class="timeline-canvas-wrapper">
+            <div class="timeline-track"></div>
+            <div id="timelineEventsList" class="timeline-events-list"></div>
+          </div>
+        </div>
+      </section>
+      <section id="page" class="view-section" style="display:none;"></section>
+    </main>
+    <aside class="rightbar">
+      <h2>Backlinks</h2>
+      <div id="backlinks"></div>
+      <h2>Outgoing Links</h2>
+      <div id="outlinks"></div>
+      <h2>Visuals</h2>
+      <div id="visuals"></div>
+      <h2>Artifact Augments</h2>
+      <div id="artifactAugments"></div>
+      <h2>Page Ops</h2>
+      <div id="pageOps" class="ops-panel">
+        <input id="appendHeading" class="ops-input" placeholder="Append heading (optional)" />
+        <textarea id="appendBody" class="ops-textarea" placeholder="Append new wiki text..."></textarea>
+        <button id="appendPage">Append to Page</button>
+      </div>
+      <h2>Comments & Flags</h2>
+      <div id="commentComposer" class="ops-panel">
+        <input id="commentCategory" class="ops-input" list="commentCategoryOptions" placeholder="open-question" />
+        <datalist id="commentCategoryOptions"></datalist>
+        <select id="commentStatus" class="ops-input">
+          <option value="open">open</option>
+          <option value="in-progress">in-progress</option>
+          <option value="answered">answered</option>
+          <option value="resolved">resolved</option>
+        </select>
+        <select id="commentPriority" class="ops-input">
+          <option value="3">priority 3</option>
+          <option value="2" selected>priority 2</option>
+          <option value="1">priority 1</option>
+          <option value="0">priority 0</option>
+        </select>
+        <textarea id="commentQuote" class="ops-textarea small" placeholder="Selected quote / anchor text"></textarea>
+        <textarea id="commentBody" class="ops-textarea" placeholder="Comment, flag, or future-agent note..."></textarea>
+        <input id="commentTags" class="ops-input" placeholder="tags: canon, source-needed" />
+        <div class="ops-row">
+          <button id="useSelection">Use Selection</button>
+          <button id="addComment">Add Comment</button>
+        </div>
+      </div>
+      <div id="commentsList"></div>
+      <h2>Versions</h2>
+      <div id="versionsList"></div>
+      <h2>Card / Retrieval</h2>
+      <pre id="retrieval"></pre>
+      <h2>Local Graph</h2>
+      <canvas id="graph" width="300" height="220"></canvas>
+    </aside>
+  </div>
+  <script src="soundEffects.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>

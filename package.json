@@ -1,0 +1,59 @@
+{
+  "name": "hapa-wiki-viewer",
+  "version": "0.1.0",
+  "description": "Local Electron viewer for the Hapa Worldbuilding Wiki markdown vault.",
+  "license": "MIT",
+  "main": "src/main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --no-warnings --test test/*.test.js",
+    "index": "node scripts/build-index.js",
+    "build": "electron-builder --mac --dir",
+    "images:plan": "node scripts/generate-page-images.js --provider dry-run",
+    "images:generate": "node scripts/generate-page-images.js",
+    "youtube:init": "node --no-warnings scripts/youtube-library.js init",
+    "youtube:import": "node --no-warnings scripts/youtube-library.js import-takeout",
+    "youtube:queue": "node --no-warnings scripts/youtube-library.js queue-all",
+    "youtube:transcripts": "node --no-warnings scripts/youtube-library.js run-transcripts",
+    "youtube:enrich": "node --no-warnings scripts/youtube-library.js run-enrichment",
+    "youtube:creators": "node --no-warnings scripts/youtube-library.js run-creators",
+    "youtube:wiki": "node --no-warnings scripts/youtube-library.js export-wiki",
+    "youtube:status": "node --no-warnings scripts/youtube-library.js status",
+    "artifacts:init": "node --no-warnings scripts/artifact-library.js init",
+    "artifacts:scan": "node --no-warnings scripts/artifact-library.js scan",
+    "artifacts:wiki": "node --no-warnings scripts/artifact-library.js export-wiki",
+    "artifacts:relations": "node --no-warnings scripts/artifact-library.js relations",
+    "artifacts:status": "node --no-warnings scripts/artifact-library.js status",
+    "wikiops": "node --no-warnings scripts/wiki-ops.js",
+    "wikiops:init": "node --no-warnings scripts/wiki-ops.js init",
+    "wikiops:status": "node --no-warnings scripts/wiki-ops.js status",
+    "wikiops:serve": "node --no-warnings scripts/wiki-ops.js serve",
+    "wikiops:comment": "node --no-warnings scripts/wiki-ops.js comment",
+    "wikiops:append": "node --no-warnings scripts/wiki-ops.js append",
+    "massivehistory:import": "node --no-warnings scripts/massivehistory-library.js import",
+    "massivehistory:status": "node --no-warnings scripts/massivehistory-library.js status",
+    "devproto:cards": "node --no-warnings scripts/import-dev-proto-cards.js"
+  },
+  "dependencies": {
+    "@electron/remote": "^2.1.2",
+    "gray-matter": "^4.0.3",
+    "marked": "^15.0.12"
+  },
+  "devDependencies": {
+    "electron": "^42.1.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "world.hapa.wiki-viewer",
+    "productName": "Hapa Wiki Viewer",
+    "files": [
+      "src/**/*",
+      "scripts/wiki-ops.js",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.reference"
+    }
+  }
+}
