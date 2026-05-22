@@ -13,6 +13,7 @@ let cardQualityCache = new Map();
 let musicAudioCtx = null;
 let musicAnalyser = null;
 let musicAnimationFrame = null;
+let selectedMusicId = null;
 
 const el = id => document.getElementById(id);
 const routeParams = new URLSearchParams(window.location.search);
@@ -114,12 +115,14 @@ function switchView(viewName) {
   // Hide all view sections
   el('portalView').style.display = 'none';
   el('cardsView').style.display = 'none';
+  el('musicView').style.display = 'none';
   el('timelineView').style.display = 'none';
   el('page').style.display = 'none';
   
   // Deactivate all tab buttons
   el('togglePortal').classList.remove('active');
   el('toggleCards').classList.remove('active');
+  el('toggleMusic').classList.remove('active');
   el('toggleTimeline').classList.remove('active');
   el('toggleDoc').classList.remove('active');
   
@@ -130,6 +133,10 @@ function switchView(viewName) {
     el('cardsView').style.display = 'block';
     el('toggleCards').classList.add('active');
     renderCardBrowser();
+  } else if (viewName === 'music') {
+    el('musicView').style.display = 'block';
+    el('toggleMusic').classList.add('active');
+    renderMusicLibrary();
   } else if (viewName === 'timeline') {
     el('timelineView').style.display = 'block';
     el('toggleTimeline').classList.add('active');
@@ -1422,6 +1429,76 @@ function renderMusicPlayer(page) {
   });
 }
 
+function renderMusicLibrary() {
+  const index = wiki?.music || {};
+  const songs = index.songs || [];
+  const stats = index.stats || {};
+  const statsBox = el('musicStats');
+  const listBox = el('musicSongList');
+  const playerBox = el('musicLibraryPlayer');
+  if (!statsBox || !listBox || !playerBox) return;
+
+  statsBox.innerHTML = `
+    <div><strong>${Number(stats.songs || songs.length).toLocaleString()}</strong><span>indexed songs</span></div>
+    <div><strong>${Number(stats.registrySongs || 0).toLocaleString()}</strong><span>registry songs</span></div>
+    <div><strong>${Number(stats.lyricMasters || 0).toLocaleString()}</strong><span>lyric masters</span></div>
+    <div><strong>${Number(stats.stems || 0).toLocaleString()}</strong><span>stems</span></div>
+  `;
+
+  if (!songs.length) {
+    listBox.innerHTML = '<p class="empty">No music index loaded. Run npm run music:index.</p>';
+    playerBox.innerHTML = '<article class="music-library-empty"><h2>No Hapa songs indexed yet</h2><p>Regenerate Raw/Music/hapa-music-page-index.json from the Hapa Song Registry.</p></article>';
+    return;
+  }
+
+  const query = String(el('musicSearch')?.value || '').trim().toLowerCase();
+  const filtered = songs.filter(song => {
+    if (!query) return true;
+    const hay = [song.title, song.tags, song.lyricExcerpt, song.connection, song.lyricMasterTitle, ...(song.pageMatches || []).map(p => `${p.title} ${p.slug}`)].join(' ').toLowerCase();
+    return hay.includes(query);
+  }).slice(0, 160);
+
+  if (!selectedMusicId || !songs.some(song => song.id === selectedMusicId)) selectedMusicId = filtered[0]?.id || songs[0].id;
+  const selected = songs.find(song => song.id === selectedMusicId) || filtered[0] || songs[0];
+
+  listBox.innerHTML = filtered.map(song => `
+    <button class="music-library-row ${song.id === selected.id ? 'active' : ''}" data-song-id="${escapeHtml(song.id)}">
+      <span>${escapeHtml(song.title || 'Untitled song')}</span>
+      <small>${escapeHtml([song.model, song.majorModelVersion, musicTime(song.duration)].filter(Boolean).join(' · '))}</small>
+    </button>
+  `).join('') || '<p class="empty">No songs matched that search.</p>';
+
+  const pages = (selected.pageMatches || []).slice(0, 8).map(p => `
+    <button class="music-page-link" data-music-page="${escapeHtml(p.slug)}">
+      <span>${escapeHtml(p.title || p.slug)}</span>
+      <small>${escapeHtml(p.section || '')} · score ${Number(p.score || 0)}</small>
+    </button>
+  `).join('');
+
+  playerBox.innerHTML = `
+    <div class="music-library-now">
+      <div class="music-kicker">Now loaded from the Hapa Song Registry</div>
+      <h2>${escapeHtml(selected.title || 'Untitled song')}</h2>
+      <div class="music-meta">${escapeHtml([selected.model, selected.majorModelVersion, musicTime(selected.duration), selected.lyricMasterId].filter(Boolean).join(' · '))}</div>
+      <audio class="music-audio music-library-audio" controls preload="metadata" src="${escapeHtml(selected.audioUrl || '')}"></audio>
+      <canvas class="music-visualizer music-library-visualizer" width="760" height="120"></canvas>
+      <p class="music-explanation">${escapeHtml(selected.connection || selected.explanation || 'Connected by shared Hapa development/canon language.')}</p>
+      <div class="music-library-columns">
+        <details open class="music-lyrics"><summary>Lyric excerpt / prompt source</summary><pre>${escapeHtml(selected.lyricExcerpt || selected.tags || '')}</pre></details>
+        <div class="music-connected-pages"><h3>Connected wiki pages / artifacts</h3>${pages || '<p class="empty">No connected pages recorded for this song.</p>'}</div>
+      </div>
+    </div>
+  `;
+
+  wireMusicAudio(playerBox.querySelector('.music-audio'), playerBox.querySelector('.music-visualizer'));
+  listBox.querySelectorAll('[data-song-id]').forEach(btn => {
+    btn.onclick = () => { selectedMusicId = btn.dataset.songId; renderMusicLibrary(); };
+  });
+  playerBox.querySelectorAll('[data-music-page]').forEach(btn => {
+    btn.onclick = () => openPage(btn.dataset.musicPage);
+  });
+}
+
 function renderLinks(page) {
   const backlinkBox = el('backlinks'); backlinkBox.innerHTML = '';
   if (!page.backlinks.length) backlinkBox.innerHTML = '<p class="empty">No backlinks yet.</p>';
@@ -1673,7 +1750,7 @@ async function load() {
     return;
   }
   await openPage(wiki.pages.README ? 'README' : wiki.orderedSlugs[0], false);
-  switchView('portal');
+  switchView('music');
 }
 
 function fillSelect(id, values, label) {
@@ -1767,6 +1844,7 @@ el('search').addEventListener('input', e => renderTree(e.target.value));
 ['cardSearch','cardTypeFilter','cardMediaFilter','cardStatusFilter','cardTierFilter','cardSort'].forEach(id => el(id).addEventListener('input', renderCardBrowser));
 ['cardTypeFilter','cardMediaFilter','cardStatusFilter','cardTierFilter','cardSort'].forEach(id => el(id).addEventListener('change', renderCardBrowser));
 el('cardDensityToggle').onclick = toggleCardDensity;
+el('musicSearch').addEventListener('input', renderMusicLibrary);
 el('randomPage').onclick = randomOpen;
 el('discoverNodes').onclick = () => setSection('Nodes');
 el('discoverNames').onclick = () => setSection('Names');
@@ -1792,6 +1870,7 @@ el('addComment').onclick = addCurrentComment;
 // Tab Navigation Controls
 el('togglePortal').onclick = () => { activePortalSection = null; el('crumb').textContent = 'Portal'; switchView('portal'); };
 el('toggleCards').onclick = () => { el('crumb').textContent = 'Cards'; switchView('cards'); };
+el('toggleMusic').onclick = () => { el('crumb').textContent = 'Music'; switchView('music'); };
 el('toggleTimeline').onclick = () => switchView('timeline');
 el('toggleDoc').onclick = () => switchView('doc');
 

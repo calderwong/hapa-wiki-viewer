@@ -42,6 +42,7 @@
         <span class="tab-divider">|</span>
         <button id="togglePortal" class="view-tab active">Portal</button>
         <button id="toggleCards" class="view-tab">Cards</button>
+        <button id="toggleMusic" class="view-tab">Music</button>
         <button id="toggleTimeline" class="view-tab">Timeline</button>
         <button id="toggleDoc" class="view-tab">Document</button>
         <button id="toggleSound" class="view-tab sound-toggle" aria-pressed="true">SFX On</button>
@@ -96,6 +97,25 @@
               <div id="cardGrid" class="card-grid"></div>
             </div>
             <aside id="cardInspector" class="card-inspector"></aside>
+          </div>
+        </div>
+      </section>
+      <section id="musicView" class="view-section" style="display:none;">
+        <div class="music-library-shell">
+          <div class="music-library-hero">
+            <div>
+              <div class="kicker">Hapa Music Canon</div>
+              <h1>Music / Lore Library</h1>
+              <p>Play the songs created as the Hapa ecosystem developed, with generated song-to-wiki connections and curator notes.</p>
+            </div>
+            <div id="musicStats" class="mission-readout"></div>
+          </div>
+          <div class="music-library-layout">
+            <aside class="music-library-list-panel">
+              <input id="musicSearch" class="cards-search" placeholder="Search songs, lyrics, canon topics, connected pages..." />
+              <div id="musicSongList" class="music-library-list"></div>
+            </aside>
+            <section id="musicLibraryPlayer" class="music-library-player"></section>
           </div>
         </div>
       </section>

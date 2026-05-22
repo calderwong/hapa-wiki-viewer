@@ -973,3 +973,93 @@ body.card-window-mode #toggleDoc {
   line-height: 1.35;
   margin-top: 4px;
 }
+
+
+/* Full-page Hapa Music / Lore Library */
+.music-library-shell {
+  padding: 24px;
+}
+.music-library-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: stretch;
+  background: linear-gradient(135deg, rgba(120,166,255,0.16), rgba(255,120,200,0.10));
+  border: 1px solid rgba(120,166,255,0.24);
+  border-radius: 22px;
+  padding: 22px;
+  margin-bottom: 18px;
+}
+.music-library-hero h1 { margin: 4px 0 8px; }
+.music-library-hero p { color: var(--hapa-dim); max-width: 780px; }
+.music-library-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) minmax(420px, 1fr);
+  gap: 18px;
+}
+.music-library-list-panel,
+.music-library-player {
+  background: rgba(12, 16, 28, 0.82);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px;
+}
+.music-library-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  max-height: calc(100vh - 280px);
+  overflow: auto;
+}
+.music-library-row,
+.music-page-link {
+  width: 100%;
+  border: 1px solid rgba(120,166,255,0.18);
+  background: rgba(255,255,255,0.035);
+  color: var(--text);
+  border-radius: 12px;
+  padding: 10px;
+  text-align: left;
+  cursor: pointer;
+}
+.music-library-row span,
+.music-page-link span { display: block; font-weight: 800; }
+.music-library-row small,
+.music-page-link small { display: block; color: var(--hapa-dim); margin-top: 4px; }
+.music-library-row.active {
+  border-color: var(--hapa-gold);
+  background: rgba(244,195,92,0.12);
+}
+.music-library-now h2 { margin: 6px 0 8px; }
+.music-library-audio { width: 100%; margin: 12px 0; }
+.music-library-visualizer {
+  width: 100%;
+  height: 120px;
+  border: 1px solid rgba(120,166,255,0.2);
+  border-radius: 14px;
+  background: #080b14;
+}
+.music-library-columns {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(260px, 0.85fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+.music-connected-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.music-connected-pages h3 { margin: 0 0 4px; }
+.music-library-empty {
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  padding: 22px;
+  color: var(--hapa-dim);
+}
+@media (max-width: 1180px) {
+  .music-library-layout,
+  .music-library-columns { grid-template-columns: 1fr; }
+  .music-library-list { max-height: 320px; }
+}
