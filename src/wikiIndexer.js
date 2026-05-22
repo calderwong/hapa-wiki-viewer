@@ -198,6 +198,7 @@ function attachHapaMusicAugmentations(index) {
     musicIndexPath: musicIndex.musicIndexPath,
     generatedAt: musicIndex.generatedAt,
     stats: musicIndex.stats,
+    songs,
   };
   index.stats.musicSongs = musicIndex.stats.songs || songs.length;
   index.stats.musicAugmentedPages = musicAugmentedPages;

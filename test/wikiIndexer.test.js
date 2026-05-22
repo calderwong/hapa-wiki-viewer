@@ -74,6 +74,8 @@ test('buildWikiIndex reads markdown, frontmatter, wikilinks, backlinks, and card
   assert.equal(index.stats.images, 1);
   assert.equal(index.stats.videos, 1);
   assert.equal(index.stats.musicSongs, 1);
+  assert.equal(index.music.songs.length, 1);
+  assert.equal(index.music.songs[0].title, 'Hapa Protocol Hymn');
   assert.equal(index.pages['Cards/Card A'].musicMatches[0].title, 'Hapa Protocol Hymn');
   assert.equal(index.pages['Cards/Card A'].musicMatches[0].audioUrl, 'file:///tmp/hapa-protocol-hymn.mp3');
   assert.equal(index.music.stats.songs, 1);
