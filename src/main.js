@@ -109,7 +109,8 @@ function sanitizePageRecord(p) {
     cover: p.cover || '',
     coverUrl: firstImage ? resolveMarkdownAssetSrc(firstImage, p.slug) : artifactCover,
     videoUrl: firstVideo ? resolveMarkdownAssetSrc(firstVideo, p.slug) : '',
-    artifactMatches: p.artifactMatches || []
+    artifactMatches: p.artifactMatches || [],
+    musicMatches: p.musicMatches || []
   };
 }
 
@@ -154,7 +155,8 @@ function sanitizeIndex(index) {
     graph: index.graph,
     stats: index.stats,
     facets: index.facets,
-    artifacts: index.artifacts || null
+    artifacts: index.artifacts || null,
+    music: index.music || null
   };
 }
 
@@ -180,7 +182,8 @@ function safeCardWindowIndex(slug) {
     graph: { nodes: [], edges: [] },
     stats: currentIndex.stats,
     facets: { sections: {}, kinds: {}, types: {}, statuses: {}, tags: {}, cardTopics: {} },
-    artifacts: null
+    artifacts: null,
+    music: currentIndex.music || null
   };
 }
 
@@ -247,7 +250,7 @@ ipcMain.handle('wiki:getPage', async (_event, slug) => {
   if (!currentIndex) safeBuildIndex();
   const page = currentIndex.pages[slug];
   if (!page) return null;
-  return { slug: page.slug, title: page.title, body: page.body, raw: page.raw, frontmatter: page.frontmatter, links: page.links, images: page.images, videos: page.videos || [], artifactMatches: page.artifactMatches || [], backlinks: page.backlinks, relativePath: page.relativePath };
+  return { slug: page.slug, title: page.title, body: page.body, raw: page.raw, frontmatter: page.frontmatter, links: page.links, images: page.images, videos: page.videos || [], artifactMatches: page.artifactMatches || [], musicMatches: page.musicMatches || [], backlinks: page.backlinks, relativePath: page.relativePath };
 });
 ipcMain.handle('wiki:reindex', () => safeBuildIndex(currentWikiPath));
 ipcMain.handle('wiki:showInFinder', async (_event, slug) => {

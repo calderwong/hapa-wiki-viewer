@@ -33,7 +33,8 @@
     "wikiops:append": "node --no-warnings scripts/wiki-ops.js append",
     "massivehistory:import": "node --no-warnings scripts/massivehistory-library.js import",
     "massivehistory:status": "node --no-warnings scripts/massivehistory-library.js status",
-    "devproto:cards": "node --no-warnings scripts/import-dev-proto-cards.js"
+    "devproto:cards": "node --no-warnings scripts/import-dev-proto-cards.js",
+    "music:index": "node --no-warnings scripts/build-music-index.js"
   },
   "dependencies": {
     "@electron/remote": "^2.1.2",

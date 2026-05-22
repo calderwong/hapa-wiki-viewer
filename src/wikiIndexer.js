@@ -141,6 +141,68 @@ function attachArtifactAugmentations(index) {
   index.stats.artifactAugmentedPages = augmentedPages;
 }
 
+function loadHapaMusicIndex(root) {
+  const candidates = [
+    path.join(root, 'Raw', 'Music', 'hapa-music-page-index.json'),
+    path.join(root, 'Raw', 'Music', 'hapa-music-index.json'),
+  ];
+  for (const musicIndexPath of candidates) {
+    if (!fs.existsSync(musicIndexPath)) continue;
+    try {
+      const payload = JSON.parse(fs.readFileSync(musicIndexPath, 'utf8'));
+      const songs = Array.isArray(payload.songs) ? payload.songs : [];
+      return {
+        musicIndexPath,
+        generatedAt: payload.generatedAt || '',
+        stats: payload.stats || { songs: songs.length },
+        songs: songs.map(song => ({
+          ...song,
+          audioUrl: song.audioUrl || (song.localPath && fs.existsSync(song.localPath) ? pathToFileURL(song.localPath).href : ''),
+          imageUrl: song.imageUrl || '',
+        })),
+      };
+    } catch {
+      return { musicIndexPath, generatedAt: '', stats: { songs: 0 }, songs: [] };
+    }
+  }
+  return { musicIndexPath: candidates[0], generatedAt: '', stats: { songs: 0 }, songs: [] };
+}
+
+function attachHapaMusicAugmentations(index) {
+  const musicIndex = loadHapaMusicIndex(index.root);
+  const songs = musicIndex.songs.filter(song => song.localPath || song.audioUrl);
+  const scoredSongs = songs.map(song => ({
+    song,
+    terms: tokenize(`${song.title || ''} ${song.lyricMasterTitle || ''} ${song.tags || ''} ${(song.topics || []).join(' ')} ${(song.pageSlugs || []).join(' ')} ${song.lyricExcerpt || ''} ${song.explanation || ''}`),
+  }));
+  let musicAugmentedPages = 0;
+  for (const slug of index.orderedSlugs) {
+    const page = index.pages[slug];
+    const direct = songs.filter(song => (song.pageSlugs || []).includes(slug));
+    const pageTerms = tokenize(`${page.title} ${page.slug} ${page.section} ${page.kind} ${page.tags.join(' ')} ${page.topics.join(' ')} ${page.summary}`);
+    const matches = [];
+    for (const item of scoredSongs) {
+      const directBonus = (item.song.pageSlugs || []).includes(slug) ? 100 : 0;
+      const score = directBonus + scoreTokenMaps(pageTerms, item.terms);
+      if (score < 60 && !directBonus) continue;
+      matches.push({ ...item.song, score });
+    }
+    for (const song of direct) {
+      if (!matches.some(match => match.id === song.id)) matches.push({ ...song, score: 100 });
+    }
+    matches.sort((a, b) => b.score - a.score || String(a.title).localeCompare(String(b.title)));
+    page.musicMatches = matches.slice(0, 5);
+    if (page.musicMatches.length) musicAugmentedPages += 1;
+  }
+  index.music = {
+    musicIndexPath: musicIndex.musicIndexPath,
+    generatedAt: musicIndex.generatedAt,
+    stats: musicIndex.stats,
+  };
+  index.stats.musicSongs = musicIndex.stats.songs || songs.length;
+  index.stats.musicAugmentedPages = musicAugmentedPages;
+}
+
 function pageKind(relative, data) {
   const section = relative.includes('/') ? relative.split('/')[0] : 'Root';
   if (data.card_id || data.retrieval_id || /\/Cards\//.test('/' + relative)) return 'Card';
@@ -338,7 +400,8 @@ function buildWikiIndex(rootDir) {
   index.stats.videos = index.orderedSlugs.reduce((n, slug) => n + (index.pages[slug].videos || []).length, 0);
   index.stats.cards = index.cards.length;
   attachArtifactAugmentations(index);
+  attachHapaMusicAugmentations(index);
   return index;
 }
 
-module.exports = { buildWikiIndex, resolveWikiLink, normalizeSlug, parseFrontmatter, extractWikiLinks, extractMarkdownImages, extractMarkdownVideos, pageKind, asArray, loadArtifactMediaIndex, attachArtifactAugmentations };
+module.exports = { buildWikiIndex, resolveWikiLink, normalizeSlug, parseFrontmatter, extractWikiLinks, extractMarkdownImages, extractMarkdownVideos, pageKind, asArray, loadArtifactMediaIndex, attachArtifactAugmentations, loadHapaMusicIndex, attachHapaMusicAugmentations };

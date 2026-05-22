@@ -10,6 +10,9 @@ let activePortalSection = null;
 let selectedCardSlug = null;
 let cardDensity = localStorage.getItem('hapa-card-density') || 'compact';
 let cardQualityCache = new Map();
+let musicAudioCtx = null;
+let musicAnalyser = null;
+let musicAnimationFrame = null;
 
 const el = id => document.getElementById(id);
 const routeParams = new URLSearchParams(window.location.search);
@@ -1262,7 +1265,8 @@ function renderTree(filter='') {
   const imageCount = wiki.stats.images || 0;
   const videoCount = wiki.stats.videos || 0;
   const artifactCount = wiki.stats.artifactAssets || 0;
-  el('stats').textContent = `${total} shown · ${wiki.stats.markdownFiles} pages · ${wiki.stats.cards} card pages · ${wiki.stats.links} links · ${imageCount} images · ${videoCount} videos · ${artifactCount} artifact assets`;
+  const musicCount = wiki.stats.musicSongs || 0;
+  el('stats').textContent = `${total} shown · ${wiki.stats.markdownFiles} pages · ${wiki.stats.cards} card pages · ${wiki.stats.links} links · ${imageCount} images · ${videoCount} videos · ${artifactCount} artifact assets · ${musicCount} songs`;
   for (const group of Object.keys(groups).sort()) {
     const wrap = document.createElement('div'); wrap.className = 'tree-group';
     wrap.innerHTML = `<div class="tree-title">${escapeHtml(group)} (${groups[group].length})</div>`;
@@ -1309,6 +1313,115 @@ async function openPage(slug, push=true) {
   });
 }
 
+function musicTime(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds || 0)));
+  const mins = Math.floor(total / 60);
+  const secs = String(total % 60).padStart(2, '0');
+  return `${mins}:${secs}`;
+}
+
+function drawMusicVisualizer(canvas, analyser) {
+  if (!canvas || !analyser) return;
+  const ctx = canvas.getContext('2d');
+  const data = new Uint8Array(analyser.frequencyBinCount);
+  const render = () => {
+    analyser.getByteFrequencyData(data);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+    gradient.addColorStop(0, '#78a6ff');
+    gradient.addColorStop(0.5, '#f4c35c');
+    gradient.addColorStop(1, '#ff78c8');
+    ctx.fillStyle = 'rgba(8, 11, 20, 0.72)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = gradient;
+    const bars = 48;
+    const step = Math.floor(data.length / bars) || 1;
+    const gap = 2;
+    const w = canvas.width / bars;
+    for (let i = 0; i < bars; i++) {
+      const value = data[i * step] || 0;
+      const h = Math.max(3, (value / 255) * canvas.height);
+      ctx.fillRect(i * w, canvas.height - h, Math.max(1, w - gap), h);
+    }
+    musicAnimationFrame = requestAnimationFrame(render);
+  };
+  if (musicAnimationFrame) cancelAnimationFrame(musicAnimationFrame);
+  render();
+}
+
+function wireMusicAudio(audio, canvas) {
+  if (!audio || !canvas) return;
+  audio.addEventListener('play', () => {
+    try {
+      if (!musicAudioCtx) musicAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (musicAudioCtx.state === 'suspended') musicAudioCtx.resume();
+      if (!audio.dataset.analyserWired) {
+        const src = musicAudioCtx.createMediaElementSource(audio);
+        musicAnalyser = musicAudioCtx.createAnalyser();
+        musicAnalyser.fftSize = 128;
+        src.connect(musicAnalyser);
+        musicAnalyser.connect(musicAudioCtx.destination);
+        audio.dataset.analyserWired = '1';
+      }
+      drawMusicVisualizer(canvas, musicAnalyser);
+    } catch (err) {
+      console.warn('Music visualizer unavailable:', err);
+    }
+  });
+  audio.addEventListener('pause', () => {
+    if (musicAnimationFrame) cancelAnimationFrame(musicAnimationFrame);
+  });
+}
+
+function renderMusicPlayer(page) {
+  const box = el('musicPlayerPanel');
+  if (!box) return;
+  box.innerHTML = '';
+  const songs = page.musicMatches || [];
+  if (!songs.length) {
+    box.innerHTML = '<p class="empty">No mapped Hapa songs yet. Run the music indexer to connect songs to this page.</p>';
+    return;
+  }
+  const lead = songs[0];
+  const wrap = document.createElement('div');
+  wrap.className = 'music-player-card';
+  const songCards = songs.slice(0, 5).map((song, idx) => `
+    <button class="music-song-chip ${idx === 0 ? 'active' : ''}" data-music-index="${idx}">
+      <span>${escapeHtml(song.title || 'Untitled song')}</span>
+      <small>${escapeHtml(song.connection || song.explanation || 'Connected by shared Hapa development/canon language').slice(0, 160)}</small>
+    </button>
+  `).join('');
+  wrap.innerHTML = `
+    <div class="music-now">
+      <div class="music-kicker">Hapa development soundtrack</div>
+      <div class="music-title">${escapeHtml(lead.title || 'Untitled song')}</div>
+      <div class="music-meta">${escapeHtml([lead.model, lead.majorModelVersion, musicTime(lead.duration)].filter(Boolean).join(' · '))}</div>
+      <audio class="music-audio" controls preload="metadata" src="${escapeHtml(lead.audioUrl || '')}"></audio>
+      <canvas class="music-visualizer" width="280" height="74"></canvas>
+      <p class="music-explanation">${escapeHtml(lead.connection || lead.explanation || 'This song shares language with the current wiki artifact and is part of the Hapa development/canon music archive.')}</p>
+      <details class="music-lyrics"><summary>Lyric excerpt / source data</summary><pre>${escapeHtml(lead.lyricExcerpt || lead.tags || '')}</pre></details>
+    </div>
+    <div class="music-song-list">${songCards}</div>
+  `;
+  box.appendChild(wrap);
+  const audio = wrap.querySelector('.music-audio');
+  const canvas = wrap.querySelector('.music-visualizer');
+  wireMusicAudio(audio, canvas);
+  wrap.querySelectorAll('[data-music-index]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const next = songs[Number(btn.dataset.musicIndex || 0)] || lead;
+      wrap.querySelectorAll('.music-song-chip').forEach(chip => chip.classList.remove('active'));
+      btn.classList.add('active');
+      wrap.querySelector('.music-title').textContent = next.title || 'Untitled song';
+      wrap.querySelector('.music-meta').textContent = [next.model, next.majorModelVersion, musicTime(next.duration)].filter(Boolean).join(' · ');
+      wrap.querySelector('.music-explanation').textContent = next.connection || next.explanation || 'Connected by shared Hapa development/canon language.';
+      wrap.querySelector('.music-lyrics pre').textContent = next.lyricExcerpt || next.tags || '';
+      audio.src = next.audioUrl || '';
+      audio.load();
+    });
+  });
+}
+
 function renderLinks(page) {
   const backlinkBox = el('backlinks'); backlinkBox.innerHTML = '';
   if (!page.backlinks.length) backlinkBox.innerHTML = '<p class="empty">No backlinks yet.</p>';
@@ -1338,6 +1451,7 @@ function renderLinks(page) {
     `;
     visualBox.appendChild(item);
   }
+  renderMusicPlayer(page);
   const artifactBox = el('artifactAugments');
   artifactBox.innerHTML = '';
   const artifacts = page.artifactMatches || [];

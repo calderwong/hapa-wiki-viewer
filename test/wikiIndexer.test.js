@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 
-const { buildWikiIndex, resolveWikiLink, normalizeSlug, extractMarkdownImages, extractMarkdownVideos } = require('../src/wikiIndexer');
+const { buildWikiIndex, resolveWikiLink, normalizeSlug, extractMarkdownImages, extractMarkdownVideos, loadHapaMusicIndex } = require('../src/wikiIndexer');
 
 function makeVault() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hapa-wiki-test-'));
@@ -31,6 +31,21 @@ retrieval_id: sqlite:cards/card-123
 # Card A
 Wisdom card.
 `);
+  fs.mkdirSync(path.join(root, 'Raw', 'Music'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'Raw', 'Music', 'hapa-music-page-index.json'), JSON.stringify({
+    generatedAt: '2026-05-22T00:00:00.000Z',
+    stats: { songs: 1 },
+    songs: [{
+      id: 'song-1',
+      title: 'Hapa Protocol Hymn',
+      localPath: '/tmp/hapa-protocol-hymn.mp3',
+      audioUrl: 'file:///tmp/hapa-protocol-hymn.mp3',
+      pageSlugs: ['Cards/Card A'],
+      topics: ['hapa', 'protocol', 'wisdom'],
+      explanation: 'Directly mapped to Card A for test coverage.',
+      lyricExcerpt: 'Hapa protocol wisdom card memory signal',
+    }]
+  }, null, 2));
   return root;
 }
 
@@ -58,6 +73,10 @@ test('buildWikiIndex reads markdown, frontmatter, wikilinks, backlinks, and card
   assert.equal(index.facets.statuses.seed, 1);
   assert.equal(index.stats.images, 1);
   assert.equal(index.stats.videos, 1);
+  assert.equal(index.stats.musicSongs, 1);
+  assert.equal(index.pages['Cards/Card A'].musicMatches[0].title, 'Hapa Protocol Hymn');
+  assert.equal(index.pages['Cards/Card A'].musicMatches[0].audioUrl, 'file:///tmp/hapa-protocol-hymn.mp3');
+  assert.equal(index.music.stats.songs, 1);
 });
 
 test('extractMarkdownImages finds image alt text and relative sources', () => {
