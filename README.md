@@ -88,3 +88,11 @@ Project-level license: MIT under Hapa.ai / Calder Wong. See `LICENSE`.
 Third-party dependencies keep their own license notices in `node_modules`, package metadata, and generated Electron bundles. Do not remove those notices when packaging or redistributing.
 
 Contributors may optionally opt into Bananas work-contribution tracking for attribution. Bananas attribution is an additional credit/accounting channel for work performed; it does not replace the MIT license terms or third-party license obligations.
+
+<!-- HAPA-README-SCREENSHOT-2026-05-22 -->
+
+## Screenshot
+
+![hapa-wiki-viewer UI screenshot](docs/assets/screenshots/readme-hapa-wiki-viewer-static-fallback.png)
+
+Hapa Wiki Viewer renderer static-file fallback; Electron preload is required for the full app.
