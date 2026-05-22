@@ -8,30 +8,49 @@
 </head>
 <body>
   <div id="app">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="sigil">H</div>
-        <div><h1>Hapa Wiki</h1><p id="rootPath">Loading…</p></div>
+    <button id="toggleLeftRail" class="rail-trigger rail-trigger-left" aria-controls="leftRail" aria-expanded="false" title="Open navigation dashboard">☰ Wiki</button>
+    <button id="toggleRightRail" class="rail-trigger rail-trigger-right" aria-controls="rightRail" aria-expanded="false" title="Open context dashboard">Context ◇</button>
+    <div id="railScrim" class="rail-scrim" aria-hidden="true"></div>
+    <aside id="leftRail" class="sidebar rail-panel left-flyout" aria-label="Wiki navigation dashboard" aria-hidden="true">
+      <div class="rail-head">
+        <div class="brand">
+          <div class="sigil">H</div>
+          <div><h1>Hapa Wiki</h1><p id="rootPath">Loading…</p></div>
+        </div>
+        <button id="closeLeftRail" class="rail-close" title="Close navigation dashboard">×</button>
       </div>
-      <div class="toolbar">
-        <button id="openFolder">Open Folder</button>
-        <button id="reindex">Reindex</button>
-      </div>
-      <input id="search" placeholder="Search pages, cards, nodes…" autofocus />
-      <div class="filters">
-        <select id="sectionFilter"><option value="">All sections</option></select>
-        <select id="kindFilter"><option value="">All kinds</option></select>
-        <select id="statusFilter"><option value="">All statuses</option></select>
-      </div>
-      <div class="quickbar" id="quickbar"></div>
-      <div class="toolbar discoverbar">
-        <button id="randomPage">Random</button>
-        <button id="discoverNodes">Nodes</button>
-        <button id="discoverNames">Names</button>
-        <button id="discoverCards">Cards</button>
-      </div>
-      <div class="stats" id="stats"></div>
-      <nav id="tree"></nav>
+      <section class="rail-card rail-dashboard-card">
+        <div class="rail-kicker">Navigation Dashboard</div>
+        <div id="railOverview" class="rail-overview"></div>
+      </section>
+      <details class="rail-group" open>
+        <summary>Command Center</summary>
+        <div class="toolbar">
+          <button id="openFolder">Open Folder</button>
+          <button id="reindex">Reindex</button>
+        </div>
+        <input id="search" placeholder="Search pages, cards, nodes…" autofocus />
+        <div class="filters">
+          <select id="sectionFilter"><option value="">All sections</option></select>
+          <select id="kindFilter"><option value="">All kinds</option></select>
+          <select id="statusFilter"><option value="">All statuses</option></select>
+        </div>
+      </details>
+      <details class="rail-group" open>
+        <summary>Atlas Shortcuts</summary>
+        <div class="quickbar" id="quickbar"></div>
+        <div class="toolbar discoverbar">
+          <button id="randomPage">Random</button>
+          <button id="discoverNodes">Nodes</button>
+          <button id="discoverNames">Names</button>
+          <button id="discoverCards">Cards</button>
+        </div>
+        <div class="stats" id="stats"></div>
+      </details>
+      <details class="rail-group" open>
+        <summary>Page Tree</summary>
+        <nav id="tree"></nav>
+      </details>
     </aside>
     <main class="content">
       <div class="topbar">
@@ -146,54 +165,76 @@
       </section>
       <section id="page" class="view-section" style="display:none;"></section>
     </main>
-    <aside class="rightbar">
-      <h2>Backlinks</h2>
-      <div id="backlinks"></div>
-      <h2>Outgoing Links</h2>
-      <div id="outlinks"></div>
-      <h2>Visuals</h2>
-      <div id="visuals"></div>
-      <h2>Music / Lore Player</h2>
-      <div id="musicPlayerPanel"></div>
-      <h2>Artifact Augments</h2>
-      <div id="artifactAugments"></div>
-      <h2>Page Ops</h2>
-      <div id="pageOps" class="ops-panel">
-        <input id="appendHeading" class="ops-input" placeholder="Append heading (optional)" />
-        <textarea id="appendBody" class="ops-textarea" placeholder="Append new wiki text..."></textarea>
-        <button id="appendPage">Append to Page</button>
-      </div>
-      <h2>Comments & Flags</h2>
-      <div id="commentComposer" class="ops-panel">
-        <input id="commentCategory" class="ops-input" list="commentCategoryOptions" placeholder="open-question" />
-        <datalist id="commentCategoryOptions"></datalist>
-        <select id="commentStatus" class="ops-input">
-          <option value="open">open</option>
-          <option value="in-progress">in-progress</option>
-          <option value="answered">answered</option>
-          <option value="resolved">resolved</option>
-        </select>
-        <select id="commentPriority" class="ops-input">
-          <option value="3">priority 3</option>
-          <option value="2" selected>priority 2</option>
-          <option value="1">priority 1</option>
-          <option value="0">priority 0</option>
-        </select>
-        <textarea id="commentQuote" class="ops-textarea small" placeholder="Selected quote / anchor text"></textarea>
-        <textarea id="commentBody" class="ops-textarea" placeholder="Comment, flag, or future-agent note..."></textarea>
-        <input id="commentTags" class="ops-input" placeholder="tags: canon, source-needed" />
-        <div class="ops-row">
-          <button id="useSelection">Use Selection</button>
-          <button id="addComment">Add Comment</button>
+    <aside id="rightRail" class="rightbar rail-panel right-flyout" aria-label="Page context dashboard" aria-hidden="true">
+      <div class="rail-head context-head">
+        <div>
+          <div class="rail-kicker">Context Dashboard</div>
+          <h1>Page Intelligence</h1>
         </div>
+        <button id="closeRightRail" class="rail-close" title="Close context dashboard">×</button>
       </div>
-      <div id="commentsList"></div>
-      <h2>Versions</h2>
-      <div id="versionsList"></div>
-      <h2>Card / Retrieval</h2>
-      <pre id="retrieval"></pre>
-      <h2>Local Graph</h2>
-      <canvas id="graph" width="300" height="220"></canvas>
+      <section class="rail-card rail-dashboard-card">
+        <div id="pageContextSummary" class="rail-overview"></div>
+      </section>
+      <details class="rail-group" open>
+        <summary>Link Graph</summary>
+        <h2>Backlinks</h2>
+        <div id="backlinks"></div>
+        <h2>Outgoing Links</h2>
+        <div id="outlinks"></div>
+        <h2>Local Graph</h2>
+        <canvas id="graph" width="300" height="220"></canvas>
+      </details>
+      <details class="rail-group" open>
+        <summary>Media Context</summary>
+        <h2>Visuals</h2>
+        <div id="visuals"></div>
+        <h2>Music / Lore Player</h2>
+        <div id="musicPlayerPanel"></div>
+        <h2>Artifact Augments</h2>
+        <div id="artifactAugments"></div>
+      </details>
+      <details class="rail-group">
+        <summary>Annotation Studio</summary>
+        <h2>Page Ops</h2>
+        <div id="pageOps" class="ops-panel">
+          <input id="appendHeading" class="ops-input" placeholder="Append heading (optional)" />
+          <textarea id="appendBody" class="ops-textarea" placeholder="Append new wiki text..."></textarea>
+          <button id="appendPage">Append to Page</button>
+        </div>
+        <h2>Comments & Flags</h2>
+        <div id="commentComposer" class="ops-panel">
+          <input id="commentCategory" class="ops-input" list="commentCategoryOptions" placeholder="open-question" />
+          <datalist id="commentCategoryOptions"></datalist>
+          <select id="commentStatus" class="ops-input">
+            <option value="open">open</option>
+            <option value="in-progress">in-progress</option>
+            <option value="answered">answered</option>
+            <option value="resolved">resolved</option>
+          </select>
+          <select id="commentPriority" class="ops-input">
+            <option value="3">priority 3</option>
+            <option value="2" selected>priority 2</option>
+            <option value="1">priority 1</option>
+            <option value="0">priority 0</option>
+          </select>
+          <textarea id="commentQuote" class="ops-textarea small" placeholder="Selected quote / anchor text"></textarea>
+          <textarea id="commentBody" class="ops-textarea" placeholder="Comment, flag, or future-agent note..."></textarea>
+          <input id="commentTags" class="ops-input" placeholder="tags: canon, source-needed" />
+          <div class="ops-row">
+            <button id="useSelection">Use Selection</button>
+            <button id="addComment">Add Comment</button>
+          </div>
+        </div>
+        <div id="commentsList"></div>
+        <h2>Versions</h2>
+        <div id="versionsList"></div>
+      </details>
+      <details class="rail-group">
+        <summary>Retrieval Packet</summary>
+        <h2>Card / Retrieval</h2>
+        <pre id="retrieval"></pre>
+      </details>
     </aside>
   </div>
   <script src="soundEffects.js"></script>

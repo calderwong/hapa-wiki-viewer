@@ -14,8 +14,72 @@ let musicAudioCtx = null;
 let musicAnalyser = null;
 let musicAnimationFrame = null;
 let selectedMusicId = null;
+let activeRail = null;
 
 const el = id => document.getElementById(id);
+
+function setRail(side, open) {
+  const targetSide = side === 'right' ? 'right' : 'left';
+  const rail = el(targetSide === 'left' ? 'leftRail' : 'rightRail');
+  const trigger = el(targetSide === 'left' ? 'toggleLeftRail' : 'toggleRightRail');
+  if (!rail || !trigger) return;
+  if (open) {
+    closeRails();
+    document.body.classList.add(`${targetSide}-rail-open`, 'rail-open');
+    rail.setAttribute('aria-hidden', 'false');
+    trigger.setAttribute('aria-expanded', 'true');
+    activeRail = targetSide;
+  } else {
+    document.body.classList.remove(`${targetSide}-rail-open`);
+    rail.setAttribute('aria-hidden', 'true');
+    trigger.setAttribute('aria-expanded', 'false');
+    if (activeRail === targetSide) activeRail = null;
+    if (!activeRail) document.body.classList.remove('rail-open');
+  }
+}
+
+function closeRails() {
+  for (const side of ['left', 'right']) {
+    const rail = el(side === 'left' ? 'leftRail' : 'rightRail');
+    const trigger = el(side === 'left' ? 'toggleLeftRail' : 'toggleRightRail');
+    if (rail) rail.setAttribute('aria-hidden', 'true');
+    if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    document.body.classList.remove(`${side}-rail-open`);
+  }
+  document.body.classList.remove('rail-open');
+  activeRail = null;
+}
+
+function initRails() {
+  el('toggleLeftRail')?.addEventListener('click', () => setRail('left', activeRail !== 'left'));
+  el('toggleRightRail')?.addEventListener('click', () => setRail('right', activeRail !== 'right'));
+  el('closeLeftRail')?.addEventListener('click', () => setRail('left', false));
+  el('closeRightRail')?.addEventListener('click', () => setRail('right', false));
+  el('railScrim')?.addEventListener('click', closeRails);
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape') closeRails(); });
+}
+
+function updateRailOverview(totalShown = 0) {
+  const box = el('railOverview');
+  if (!box || !wiki) return;
+  box.innerHTML = `
+    <div><strong>${Number(totalShown || wiki.stats?.markdownFiles || 0).toLocaleString()}</strong><span>visible pages</span></div>
+    <div><strong>${Number(wiki.stats?.cards || 0).toLocaleString()}</strong><span>card pages</span></div>
+    <div><strong>${Number(wiki.stats?.musicSongs || 0).toLocaleString()}</strong><span>songs</span></div>
+    <div><strong>${Number(wiki.stats?.artifactAssets || 0).toLocaleString()}</strong><span>artifacts</span></div>
+  `;
+}
+
+function updatePageContextSummary(page) {
+  const box = el('pageContextSummary');
+  if (!box || !page) return;
+  box.innerHTML = `
+    <div><strong>${Number(page.backlinks?.length || 0).toLocaleString()}</strong><span>backlinks</span></div>
+    <div><strong>${Number(page.links?.length || 0).toLocaleString()}</strong><span>outgoing</span></div>
+    <div><strong>${Number((page.images?.length || 0) + (page.videos?.length || 0)).toLocaleString()}</strong><span>visuals</span></div>
+    <div><strong>${Number(page.musicMatches?.length || 0).toLocaleString()}</strong><span>songs</span></div>
+  `;
+}
 const routeParams = new URLSearchParams(window.location.search);
 const isDetachedCardWindow = routeParams.get('mode') === 'card';
 const initialDetachedSlug = routeParams.get('slug') || '';
@@ -1274,6 +1338,7 @@ function renderTree(filter='') {
   const artifactCount = wiki.stats.artifactAssets || 0;
   const musicCount = wiki.stats.musicSongs || 0;
   el('stats').textContent = `${total} shown · ${wiki.stats.markdownFiles} pages · ${wiki.stats.cards} card pages · ${wiki.stats.links} links · ${imageCount} images · ${videoCount} videos · ${artifactCount} artifact assets · ${musicCount} songs`;
+  updateRailOverview(total);
   for (const group of Object.keys(groups).sort()) {
     const wrap = document.createElement('div'); wrap.className = 'tree-group';
     wrap.innerHTML = `<div class="tree-title">${escapeHtml(group)} (${groups[group].length})</div>`;
@@ -1500,6 +1565,7 @@ function renderMusicLibrary() {
 }
 
 function renderLinks(page) {
+  updatePageContextSummary(page);
   const backlinkBox = el('backlinks'); backlinkBox.innerHTML = '';
   if (!page.backlinks.length) backlinkBox.innerHTML = '<p class="empty">No backlinks yet.</p>';
   for (const b of page.backlinks) backlinkBox.appendChild(linkEl(b.source, b.title));
@@ -1734,6 +1800,7 @@ function drawGraph(page) {
 }
 
 async function load() {
+  initRails();
   if (isDetachedCardWindow) document.body.classList.add('card-window-mode');
   el('rootPath').textContent = 'Indexing wiki...';
   setWikiIndex(isDetachedCardWindow
