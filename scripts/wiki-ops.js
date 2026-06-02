@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const http = require('node:http');
 const crypto = require('node:crypto');
 const { URL } = require('node:url');
@@ -8,7 +9,7 @@ const { DatabaseSync } = require('node:sqlite');
 
 const { buildWikiIndex, parseFrontmatter } = require('../src/wikiIndexer');
 
-const DEFAULT_WIKI_ROOT = '/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki';
+const DEFAULT_WIKI_ROOT = path.join(os.homedir(), 'Desktop', 'Hapa_Worldbuilding_Wiki');
 const DEFAULT_DATA_ROOT = 'Raw/WikiOps';
 const DEFAULT_AUTHOR = process.env.HAPA_WIKI_AUTHOR || process.env.USER || 'local-user';
 const DEFAULT_ACTOR_TYPE = process.env.HAPA_WIKI_ACTOR_TYPE || 'human';

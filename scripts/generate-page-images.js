@@ -15,7 +15,7 @@ const crypto = require('node:crypto');
 
 const { buildWikiIndex } = require('../src/wikiIndexer');
 
-const DEFAULT_WIKI_ROOT = '/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki';
+const DEFAULT_WIKI_ROOT = path.join(os.homedir(), 'Desktop', 'Hapa_Worldbuilding_Wiki');
 const VISUAL_ROOT_RELATIVE = 'Assets/Visuals/Page Heroes';
 const MANIFEST_NAME = 'page-image-manifest.json';
 const DEFAULT_LTX_MODEL = 'baidu/ERNIE-Image-Turbo';

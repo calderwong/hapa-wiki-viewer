@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 const { buildWikiIndex } = require('../src/wikiIndexer');
 
-const WIKI_ROOT = process.env.HAPA_WIKI_PATH || '/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki';
-const REGISTRY_PATH = process.env.HAPA_SONG_REGISTRY_JSON || '/Users/calderwong/Desktop/hapa-song-registry/data/registry.json';
+const WIKI_ROOT = process.env.HAPA_WIKI_PATH || path.join(os.homedir(), 'Desktop', 'Hapa_Worldbuilding_Wiki');
+const REGISTRY_PATH = process.env.HAPA_SONG_REGISTRY_JSON || path.join(os.homedir(), 'Desktop', 'hapa-song-registry', 'data', 'registry.json');
 const RAW_DIR = path.join(WIKI_ROOT, 'Raw', 'Music');
 const MUSIC_DIR = path.join(WIKI_ROOT, 'Music');
 

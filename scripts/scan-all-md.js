@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
-const rootDir = '/Users/calderwong/Desktop/hapa-wiki-viewer';
+const rootDir = process.env.HAPA_WIKI_VIEWER_ROOT || process.cwd();
 
 function walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {

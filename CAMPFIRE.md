@@ -3,9 +3,9 @@
 ## Campfire identity
 
 - Display name: Hapa Wiki Viewer
-- Repository path: `/Users/calderwong/Desktop/hapa-wiki-viewer`
+- Repository path: this repository root
 - Hapa role: local desktop knowledge-interface node for the Hapa Worldbuilding Wiki.
-- Canonical wiki input: `/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki`
+- Canonical wiki input: `HAPA_WIKI_PATH` or `~/Desktop/Hapa_Worldbuilding_Wiki`
 - Global wiki note: `[[Nodes/Existing/hapa-wiki-viewer]]`
 
 ## What this node does
@@ -27,7 +27,7 @@ Verified from repository files on 2026-05-21:
 ## Commands
 
 ```bash
-cd /Users/calderwong/Desktop/hapa-wiki-viewer
+cd <hapa-wiki-viewer repo>
 npm install
 npm test
 npm run index
@@ -48,7 +48,7 @@ npm run images:plan
 
 Inputs:
 
-- Hapa Markdown vault at `/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki`.
+- Hapa Markdown vault at `HAPA_WIKI_PATH`.
 - Optional `HAPA_WIKI_PATH` override for a different Markdown vault.
 - Raw sidecar libraries under the wiki `Raw/` tree when import/status scripts are used.
 

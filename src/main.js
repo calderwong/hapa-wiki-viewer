@@ -1,12 +1,13 @@
 const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
+const os = require('node:os');
 const { pathToFileURL } = require('node:url');
 const { marked } = require('marked');
 const { buildWikiIndex } = require('./wikiIndexer');
 const wikiOps = require('../scripts/wiki-ops');
 
-const DEFAULT_WIKI_PATH = '/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki';
+const DEFAULT_WIKI_PATH = path.join(os.homedir(), 'Desktop', 'Hapa_Worldbuilding_Wiki');
 let currentWikiPath = process.env.HAPA_WIKI_PATH || DEFAULT_WIKI_PATH;
 let currentIndex = null;
 let mainWindow = null;

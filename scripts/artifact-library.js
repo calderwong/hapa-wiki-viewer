@@ -9,8 +9,8 @@ const { DatabaseSync } = require('node:sqlite');
 
 const { buildWikiIndex } = require('../src/wikiIndexer');
 
-const DEFAULT_WIKI_ROOT = '/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki';
-const DEFAULT_ARTIFACT_ROOT = '/Users/calderwong/Desktop/hapa-artifacts';
+const DEFAULT_WIKI_ROOT = path.join(os.homedir(), 'Desktop', 'Hapa_Worldbuilding_Wiki');
+const DEFAULT_ARTIFACT_ROOT = path.join(os.homedir(), 'Desktop', 'hapa-artifacts');
 const DEFAULT_DATA_ROOT = 'Raw/Artifacts';
 const DEFAULT_ASSET_ROOT = 'Assets/Artifacts';
 
@@ -873,7 +873,7 @@ function writeYouTubeSourcePage(ctx) {
 function writePipelinePage(ctx) {
   const file = path.join(ctx.wikiRoot, 'Development', 'Hapa Artifact Library Pipeline.md');
   ensureDir(path.dirname(file));
-  const content = `---\ntitle: Hapa Artifact Library Pipeline\ntype: development-pipeline\nstatus: active\ntags: [artifacts, pipeline, wiki-viewer, persistence]\n---\n# Hapa Artifact Library Pipeline\n\nThe artifact library turns \`/Users/calderwong/Desktop/hapa-artifacts\` into wiki-native memory without copying the full source vault.\n\n## Persistence\n- SQLite datastore: \`Raw/Artifacts/artifact-library.sqlite\`\n- Viewer media index: \`Raw/Artifacts/artifact-media-index.json\`\n- Generated thumbnails: \`Assets/Artifacts/thumbnails/\`\n- Converted NotebookLM notes: \`Artifacts/NotebookLM Notes/\`\n\n## Commands\n\`\`\`bash\nnpm run artifacts:init\nnpm run artifacts:scan\nnpm run artifacts:wiki\nnpm run artifacts:status\nnpm run index\n\`\`\`\n\n## Card Augmentation\nThe wiki indexer reads \`Raw/Artifacts/artifact-media-index.json\`, scores media against page titles, tags, topics, summaries, and slugs, and exposes the best matches as artifact augment cards in the viewer sidebar.\n\n## Operating Notes\n- Source media remains in \`hapa-artifacts\`; the wiki stores paths, metadata, and thumbnails.\n- NotebookLM HTML notes are converted to markdown pages so they can be searched and linked.\n- Flow media is cataloged as image/video assets with dimensions, duration, tags, and previews.\n`;
+  const content = `---\ntitle: Hapa Artifact Library Pipeline\ntype: development-pipeline\nstatus: active\ntags: [artifacts, pipeline, wiki-viewer, persistence]\n---\n# Hapa Artifact Library Pipeline\n\nThe artifact library turns \`HAPA_ARTIFACT_ROOT\` into wiki-native memory without copying the full source vault.\n\n## Persistence\n- SQLite datastore: \`Raw/Artifacts/artifact-library.sqlite\`\n- Viewer media index: \`Raw/Artifacts/artifact-media-index.json\`\n- Generated thumbnails: \`Assets/Artifacts/thumbnails/\`\n- Converted NotebookLM notes: \`Artifacts/NotebookLM Notes/\`\n\n## Commands\n\`\`\`bash\nnpm run artifacts:init\nnpm run artifacts:scan\nnpm run artifacts:wiki\nnpm run artifacts:status\nnpm run index\n\`\`\`\n\n## Card Augmentation\nThe wiki indexer reads \`Raw/Artifacts/artifact-media-index.json\`, scores media against page titles, tags, topics, summaries, and slugs, and exposes the best matches as artifact augment cards in the viewer sidebar.\n\n## Operating Notes\n- Source media remains in \`hapa-artifacts\`; the wiki stores paths, metadata, and thumbnails.\n- NotebookLM HTML notes are converted to markdown pages so they can be searched and linked.\n- Flow media is cataloged as image/video assets with dimensions, duration, tags, and previews.\n`;
   fs.writeFileSync(file, content);
   return file;
 }
@@ -967,7 +967,7 @@ function getStatus(ctx) {
 
 function writeReadme(ctx) {
   const file = path.join(ctx.dataRoot, 'README.md');
-  const content = `# Hapa Artifact Library Datastore\n\nThis folder stores the local artifact index for the Hapa wiki viewer.\n\n- \`artifact-library.sqlite\` stores source paths, tags, media metadata, NotebookLM conversion state, and wiki relations.\n- \`artifact-media-index.json\` is the browser-safe media index consumed by the wiki viewer.\n- \`reports/\` is reserved for audit reports.\n- Thumbnails live in \`Assets/Artifacts/thumbnails/\`.\n\nPrimary commands from \`/Users/calderwong/Desktop/hapa-wiki-viewer\`:\n\n\`\`\`bash\nnpm run artifacts:init\nnpm run artifacts:scan\nnpm run artifacts:wiki\nnpm run artifacts:status\nnpm run index\n\`\`\`\n`;
+  const content = `# Hapa Artifact Library Datastore\n\nThis folder stores the local artifact index for the Hapa wiki viewer.\n\n- \`artifact-library.sqlite\` stores source paths, tags, media metadata, NotebookLM conversion state, and wiki relations.\n- \`artifact-media-index.json\` is the browser-safe media index consumed by the wiki viewer.\n- \`reports/\` is reserved for audit reports.\n- Thumbnails live in \`Assets/Artifacts/thumbnails/\`.\n\nPrimary commands from \`the hapa-wiki-viewer repository root\`:\n\n\`\`\`bash\nnpm run artifacts:init\nnpm run artifacts:scan\nnpm run artifacts:wiki\nnpm run artifacts:status\nnpm run index\n\`\`\`\n`;
   fs.writeFileSync(file, content);
   return file;
 }

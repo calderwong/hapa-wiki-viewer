@@ -1,14 +1,14 @@
 # Hapa Wiki Viewer
 
-Hapa Wiki Viewer is a local Electron desktop app for browsing `/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki`, the Markdown/Obsidian-style Hapa worldbuilding wiki. In the Hapa node ecosystem it acts as a read/write knowledge-interface node: it renders canon, node, card, media, and development notes into a searchable local UI while preserving the filesystem vault as the source of truth.
+Hapa Wiki Viewer is a local Electron desktop app for browsing `HAPA_WIKI_PATH`, the Markdown/Obsidian-style Hapa worldbuilding wiki. If `HAPA_WIKI_PATH` is not set, it defaults to `~/Desktop/Hapa_Worldbuilding_Wiki`. In the Hapa node ecosystem it acts as a read/write knowledge-interface node: it renders canon, node, card, media, and development notes into a searchable local UI while preserving the filesystem vault as the source of truth.
 
 ## Verified repository facts
 
-Reviewed on 2026-05-21 from `/Users/calderwong/Desktop/hapa-wiki-viewer`:
+Reviewed on 2026-05-21 from this repository root:
 
 - Runtime: Electron app with `src/main.js`, `src/preload.js`, `src/renderer.html`, and `src/renderer.js`.
 - Package metadata: `package.json` names the package `hapa-wiki-viewer`, version `0.1.0`, CommonJS entrypoint `src/main.js`, Electron Builder app ID `world.hapa.wiki-viewer`, and product name `Hapa Wiki Viewer`.
-- Default input vault: `/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki`, overridable with `HAPA_WIKI_PATH` at app startup.
+- Default input vault: `HAPA_WIKI_PATH`, falling back to `~/Desktop/Hapa_Worldbuilding_Wiki` at app startup.
 - Main indexer: `src/wikiIndexer.js` scans Markdown, YAML-ish frontmatter, Obsidian wikilinks, backlinks, cards/retrieval metadata, images, videos, and artifact matches.
 - Wiki Ops layer: `scripts/wiki-ops.js` provides comments, page versions, categories, append/write operations, and an optional local HTTP API backed by SQLite under `Raw/WikiOps`.
 - App index export: `scripts/build-index.js` writes `Raw/app-index/hapa-wiki-viewer-index.json` inside the wiki vault.
@@ -21,7 +21,7 @@ Hapa Wiki Viewer is best treated as the local human/agent portal for the Hapa kn
 ## Run and verification commands
 
 ```bash
-cd /Users/calderwong/Desktop/hapa-wiki-viewer
+cd <hapa-wiki-viewer repo>
 npm install
 npm start
 ```
@@ -56,15 +56,15 @@ npm run devproto:cards
 
 Primary inputs:
 
-- Markdown/YAML-frontmatter wiki pages in `/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki`.
+- Markdown/YAML-frontmatter wiki pages in `HAPA_WIKI_PATH`.
 - Obsidian-style `[[wikilinks]]`, card frontmatter (`card_id`, `retrieval_id`, topics/tags/status), Markdown image references, and local video references.
 - Optional raw libraries used by scripts, including WikiOps SQLite data, artifact libraries, YouTube/Takeout data, MassiveHistory imports, and Hapa Dev Proto card snapshots.
 
 Primary outputs:
 
 - Electron UI state and rendered desktop windows.
-- App index JSON: `/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki/Raw/app-index/hapa-wiki-viewer-index.json`.
-- WikiOps data: `/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki/Raw/WikiOps/wiki-ops.sqlite` plus WAL/SHM files and reports.
+- App index JSON: `HAPA_WIKI_PATH/Raw/app-index/hapa-wiki-viewer-index.json`.
+- WikiOps data: `HAPA_WIKI_PATH/Raw/WikiOps/wiki-ops.sqlite` plus WAL/SHM files and reports.
 - Generated/imported wiki pages or media indexes when the import/export scripts are run.
 - Optional packaged app directory: `dist/mac-arm64/Hapa Wiki Viewer.app`.
 
@@ -76,7 +76,7 @@ Primary outputs:
 
 ## Hapa wiki links
 
-- Global wiki root: `/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki`
+- Global wiki root: `HAPA_WIKI_PATH`
 - Node note: `[[Nodes/Existing/hapa-wiki-viewer]]`
 - Development note: `[[Development/Hapa Wiki Viewer App]]`
 - App index output: `[[Raw/app-index/hapa-wiki-viewer-index.json]]`
@@ -109,7 +109,7 @@ Desktop/browser viewer for the Hapa Worldbuilding Wiki, with navigation over Nod
 ### Current status
 
 - Status: **active wiki navigation app**.
-- Local source root: `/Users/calderwong/Desktop/hapa-wiki-viewer`.
+- Local source root: this repository root.
 - This README is intended to be useful to both human operators and future agents: it should explain what the node is for, what it consumes, what it emits, how it connects to other Hapa nodes, and what should stay out of git.
 
 ### Inputs
@@ -128,16 +128,16 @@ Desktop/browser viewer for the Hapa Worldbuilding Wiki, with navigation over Nod
 
 ### Related Hapa nodes
 
-- [Hapa AG / Dev Proto](file:///Users/calderwong/Desktop/hapa-dev-proto) — Primary local-first app; many nodes feed it cards, assets, chat, debug, or projection data.
-- [Hapa Worldbuilding Wiki](file:///Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki) — Canonical Markdown graph for lore, nodes, names, cards, systems, and provenance.
-- [Overwatch](file:///Users/calderwong/Desktop/.Overwatch) — Operations map: inventory, source index, task inbox, protocols, and runbooks.
-- [Hapa Telemetry Node](file:///Users/calderwong/Desktop/hapa-telemetry-node) — Discovery/monitoring hub for node health, capabilities, launchers, and relationships.
-- [Hapa Keys Node](file:///Users/calderwong/Desktop/hapa-keys-node) — Local key vault used by authenticated nodes and tools.
-- [Hapa Lore Node](file:///Users/calderwong/Desktop/hapa-lore-node) — Chronicle/canon service for daily progress, lore, and searchable wisdom.
-- [Hapa Anvil Node](file:///Users/calderwong/Desktop/hapa-anvil-node) — Card standardization/evaluation/forge node for turning raw card ideas into usable artifacts.
-- [Hapa Janus World Node](file:///Users/calderwong/Desktop/hapa-janus-world-node) — World-state truth kernel and event tape for Janus/desktop simulation work.
-- [Hapa MLX Station](file:///Users/calderwong/hapa-mlx-station) — Apple Silicon media-generation station that produces visual/audio assets for cards, wiki, and production runs.
-- [Hapa Lance Node](file:///Users/calderwong/Desktop/hapa-lance-node) — Local indexing/projection layer for cards, wiki chunks, embeddings, and multimodal records.
+- Hapa AG / Dev Proto — Primary local-first app; many nodes feed it cards, assets, chat, debug, or projection data.
+- Hapa Worldbuilding Wiki — Canonical Markdown graph for lore, nodes, names, cards, systems, and provenance.
+- Overwatch — Operations map: inventory, source index, task inbox, protocols, and runbooks.
+- Hapa Telemetry Node — Discovery/monitoring hub for node health, capabilities, launchers, and relationships.
+- Hapa Keys Node — Local key vault used by authenticated nodes and tools.
+- Hapa Lore Node — Chronicle/canon service for daily progress, lore, and searchable wisdom.
+- Hapa Anvil Node — Card standardization/evaluation/forge node for turning raw card ideas into usable artifacts.
+- Hapa Janus World Node — World-state truth kernel and event tape for Janus/desktop simulation work.
+- Hapa MLX Station — Apple Silicon media-generation station that produces visual/audio assets for cards, wiki, and production runs.
+- Hapa Lance Node — Local indexing/projection layer for cards, wiki chunks, embeddings, and multimodal records.
 
 ### Operating contract
 

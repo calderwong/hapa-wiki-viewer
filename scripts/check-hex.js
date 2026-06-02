@@ -1,5 +1,6 @@
 const fs = require('node:fs');
-const content = fs.readFileSync('/Users/calderwong/Desktop/hapa-wiki-viewer/src/renderer.css', 'utf8');
+const path = require('node:path');
+const content = fs.readFileSync(path.join(process.cwd(), 'src', 'renderer.css'), 'utf8');
 const lines = content.split('\n');
 const line103 = lines[102]; // 0-indexed
 console.log("Line 103 content:", JSON.stringify(line103));

@@ -1,5 +1,7 @@
 const { buildWikiIndex } = require('../src/wikiIndexer');
-const wikiPath = '/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki';
+const path = require('node:path');
+const os = require('node:os');
+const wikiPath = process.env.HAPA_WIKI_PATH || path.join(os.homedir(), 'Desktop', 'Hapa_Worldbuilding_Wiki');
 const index = buildWikiIndex(wikiPath);
 console.log("Total pages indexed:", Object.keys(index.pages).length);
 

@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const crypto = require('node:crypto');
 
 const { parseFrontmatter } = require('../src/wikiIndexer');
 
-const DEFAULT_WIKI_ROOT = '/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki';
-const DEFAULT_SOURCE_ROOT = '/Users/calderwong/Desktop/massivehistory_chunks';
+const DEFAULT_WIKI_ROOT = path.join(os.homedir(), 'Desktop', 'Hapa_Worldbuilding_Wiki');
+const DEFAULT_SOURCE_ROOT = path.join(os.homedir(), 'Desktop', 'massivehistory_chunks');
 
 function now() {
   return new Date().toISOString();

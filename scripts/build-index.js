@@ -1,7 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const { buildWikiIndex } = require('../src/wikiIndexer');
-const wikiPath = process.argv[2] || '/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki';
+const wikiPath = process.argv[2] || process.env.HAPA_WIKI_PATH || path.join(os.homedir(), 'Desktop', 'Hapa_Worldbuilding_Wiki');
 const index = buildWikiIndex(wikiPath);
 const out = path.join(wikiPath, 'Raw', 'app-index', 'hapa-wiki-viewer-index.json');
 fs.mkdirSync(path.dirname(out), { recursive: true });

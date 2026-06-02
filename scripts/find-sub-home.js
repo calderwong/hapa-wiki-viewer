@@ -1,7 +1,8 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 
-const rootDir = '/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki';
+const rootDir = process.env.HAPA_WIKI_PATH || path.join(os.homedir(), 'Desktop', 'Hapa_Worldbuilding_Wiki');
 const matches = [];
 
 function walk(dir) {
