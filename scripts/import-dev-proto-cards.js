@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const crypto = require('node:crypto');
 const zlib = require('node:zlib');
 const { fileURLToPath } = require('node:url');
 const { DatabaseSync } = require('node:sqlite');
 
-const DEFAULT_WIKI_ROOT = '/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki';
-const DEFAULT_DB_PATH = '/Users/calderwong/Library/Application Support/hapa-ag/persistence.db';
+const DEFAULT_WIKI_ROOT = path.join(os.homedir(), 'Desktop', 'Hapa_Worldbuilding_Wiki');
+const DEFAULT_DB_PATH = path.join(os.homedir(), 'Library', 'Application Support', 'hapa-ag', 'persistence.db');
 const CARD_ROOT_REL = 'Cards/Hapa Dev Proto Cards';
 const CARD_PAGES_REL = `${CARD_ROOT_REL}/Cards`;
 const MEDIA_PAGES_REL = `${CARD_ROOT_REL}/Media`;
@@ -307,20 +308,40 @@ function readRows(dbPath) {
   }
 }
 
-function mediaSourceForRow(row, meta) {
-  const candidates = [
-    row.media_local_path,
-    meta.mediaLocalPath,
-    meta.representativeMediaLocalPath,
-    meta.generatedVideoLocal,
-    meta.generatedImageLocal,
-    meta.thumbnail,
-    row.thumbnail,
-  ];
+function mediaSourceForRow(row, meta, desiredKind = '') {
+  const candidates = desiredKind === 'video'
+    ? [
+        row.media_local_path,
+        meta.mediaLocalPath,
+        meta.representativeMediaLocalPath,
+        meta.generatedVideoLocal,
+      ]
+    : desiredKind === 'image'
+      ? [
+          row.media_local_path,
+          meta.mediaLocalPath,
+          meta.representativeMediaLocalPath,
+          meta.generatedImageLocal,
+          meta.thumbnail,
+          meta.representativeThumbnail,
+          row.thumbnail,
+        ]
+      : [
+          row.media_local_path,
+          meta.mediaLocalPath,
+          meta.representativeMediaLocalPath,
+          meta.generatedImageLocal,
+          meta.generatedVideoLocal,
+          meta.thumbnail,
+          meta.representativeThumbnail,
+          row.thumbnail,
+        ];
   for (const candidate of candidates) {
     const local = normalizeLocalPath(candidate);
     if (!local) continue;
-    if (fs.existsSync(local) && fs.statSync(local).isFile()) return local;
+    if (!fs.existsSync(local) || !fs.statSync(local).isFile()) continue;
+    if (desiredKind && inferMediaKind(local) !== desiredKind) continue;
+    return local;
   }
   return '';
 }
@@ -374,6 +395,7 @@ function mediaPageContent(entry, parentPage, mediaPageFile, wikiRoot) {
   const mediaRel = relativeMarkdownPath(mediaPageFile, assetAbs);
   const title = entry.title || entry.cardId;
   const parentLink = parentPage ? `[[${parentPage.slug}|${parentPage.title}]]` : `\`${entry.parentCardId || 'none'}\``;
+  const generation = generationSection(entry.generationMetadata);
   const mediaMarkup = entry.mediaKind === 'video'
     ? `<video src="${mediaRel}" controls></video>`
     : `![${title}](${mediaRel})`;
@@ -390,6 +412,7 @@ function mediaPageContent(entry, parentPage, mediaPageFile, wikiRoot) {
     `---\n\n` +
     `# ${title}\n\n` +
     `${mediaMarkup}\n\n` +
+    `${generation ? `${generation}\n\n` : ''}` +
     `## Parent card\n\n` +
     `${parentLink}\n\n` +
     `## Retrieval\n\n` +
@@ -400,11 +423,61 @@ function mediaPageContent(entry, parentPage, mediaPageFile, wikiRoot) {
     `- Source app media path: \`${entry.sourcePath}\`\n`;
 }
 
+function generationSection(meta = {}) {
+  if (!meta || (!meta.prompt && !meta.model && !meta.seed && !meta.width && !meta.height)) return '';
+  const lines = ['## Generation metadata', ''];
+  if (meta.prompt) {
+    lines.push('### Prompt', '');
+    lines.push('```text');
+    lines.push(markdownEscape(meta.prompt));
+    lines.push('```', '');
+  }
+  if (meta.negativePrompt) {
+    lines.push('### Negative prompt', '');
+    lines.push('```text');
+    lines.push(markdownEscape(meta.negativePrompt));
+    lines.push('```', '');
+  }
+  const rows = [
+    ['Model', meta.model],
+    ['Base model', meta.baseModel],
+    ['Seed', meta.seed],
+    ['Steps', meta.steps],
+    ['Guidance', meta.guidance],
+    ['Size', meta.width && meta.height ? `${meta.width} x ${meta.height}` : ''],
+    ['Precision', meta.precision],
+    ['Quantize', meta.quantize],
+    ['Generation time', meta.generationTimeSeconds ? `${Number(meta.generationTimeSeconds).toFixed(2)}s` : ''],
+    ['Created at', meta.createdAt],
+    ['LoRA paths', Array.isArray(meta.loraPaths) ? meta.loraPaths.join(', ') : meta.loraPaths],
+    ['LoRA scales', Array.isArray(meta.loraScales) ? meta.loraScales.join(', ') : meta.loraScales],
+    ['Metadata source', meta.source],
+  ].filter(([, value]) => value !== '' && value != null);
+  if (rows.length) {
+    lines.push('| Field | Value |');
+    lines.push('| --- | --- |');
+    for (const [label, value] of rows) lines.push(`| ${label} | ${markdownEscape(value).replace(/\|/g, '\\|')} |`);
+  }
+  return lines.join('\n').trim();
+}
+
+function dedupeMediaEntries(entries) {
+  const seen = new Set();
+  const out = [];
+  for (const entry of entries) {
+    const key = entry.sourcePath || entry.assetRelPath || entry.cardId;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(entry);
+  }
+  return out;
+}
+
 function parentMediaSection(parentId, entries, pageFile, wikiRoot) {
   const lines = [
     '## Hapa Dev Proto Media',
     '',
-    `Imported from the live \`hapa-ag\` card media projection. Parent card id: \`${parentId}\`.`,
+    `Imported from the live \`hapa-ag\` card media projection. Wiki card id: \`${parentId}\`.`,
     '',
   ];
   for (const entry of entries.slice(0, 8)) {
@@ -417,6 +490,11 @@ function parentMediaSection(parentId, entries, pageFile, wikiRoot) {
     lines.push(`- Media card id: \`${entry.cardId}\``);
     lines.push(`- Wiki asset: \`${entry.assetRelPath}\``);
     lines.push(`- Source app media path: \`${entry.sourcePath}\``);
+    if (entry.generationMetadata?.prompt) lines.push(`- Prompt: ${truncateMarkdown(entry.generationMetadata.prompt, 500)}`);
+    if (entry.generationMetadata?.model) lines.push(`- Model: \`${entry.generationMetadata.model}\``);
+    if (entry.generationMetadata?.seed) lines.push(`- Seed: \`${entry.generationMetadata.seed}\``);
+    if (entry.generationMetadata?.steps) lines.push(`- Steps: \`${entry.generationMetadata.steps}\``);
+    if (entry.generationMetadata?.width && entry.generationMetadata?.height) lines.push(`- Size: \`${entry.generationMetadata.width} x ${entry.generationMetadata.height}\``);
     if (entry.createdAt) lines.push(`- Created: \`${entry.createdAt}\``);
     lines.push('');
   }
@@ -435,6 +513,8 @@ function updateIndexPage(wikiRoot, stats, generatedAt) {
     '',
     `- Live SQLite cards scanned: ${stats.rowsScanned}.`,
     `- Media records with local files: ${stats.mediaRecords}.`,
+    `- Unique media assets available in the wiki: ${stats.uniqueMediaAssets}.`,
+    `- Media records with embedded generation metadata: ${stats.mediaRecordsWithEmbeddedMetadata}.`,
     `- Media assets copied into the wiki: ${stats.assetsCopied}.`,
     `- Existing parent card pages augmented: ${stats.parentPagesUpdated}.`,
     `- Media-card pages written: ${stats.mediaPagesWritten}.`,
@@ -460,17 +540,21 @@ function importDevProtoCards(options = {}) {
   const sourceToAsset = new Map();
   const mediaEntries = [];
   let assetsCopied = 0;
+  let metadataExtracted = 0;
 
   for (const row of rows) {
     const meta = jsonParse(row.metadata_json, {});
-    const sourcePath = mediaSourceForRow(row, meta);
+    const declaredKind = row.media_kind || meta.mediaKind || '';
+    const sourcePath = mediaSourceForRow(row, meta, declaredKind);
     if (!sourcePath) continue;
-    const kind = row.media_kind || meta.mediaKind || inferMediaKind(sourcePath);
+    const kind = declaredKind || inferMediaKind(sourcePath);
     if (!['image', 'video'].includes(kind)) continue;
     const assetRelPath = sourceToAsset.get(sourcePath) || assetRelForSource(sourcePath, kind);
     sourceToAsset.set(sourcePath, assetRelPath);
     const assetAbs = path.join(wikiRoot, assetRelPath);
     if (copyMedia(sourcePath, assetAbs)) assetsCopied += 1;
+    const generationMetadata = extractMediaMetadata(sourcePath);
+    if (generationMetadata.prompt || generationMetadata.model || generationMetadata.seed) metadataExtracted += 1;
     mediaEntries.push({
       cardId: String(row.id),
       parentCardId: String(row.parent_id || meta.parentCardId || ''),
@@ -482,14 +566,16 @@ function importDevProtoCards(options = {}) {
       coreName: row.core_name || meta.coreName || '',
       createdAt: row.created_at || meta.createdAt || '',
       updatedAt: row.updated_at || meta.updatedAt || '',
+      generationMetadata,
     });
   }
 
   const mediaByParent = new Map();
   for (const entry of mediaEntries) {
-    if (!entry.parentCardId) continue;
-    if (!mediaByParent.has(entry.parentCardId)) mediaByParent.set(entry.parentCardId, []);
-    mediaByParent.get(entry.parentCardId).push(entry);
+    const targetCardId = entry.parentCardId || (pageByCardId.has(entry.cardId) ? entry.cardId : '');
+    if (!targetCardId) continue;
+    if (!mediaByParent.has(targetCardId)) mediaByParent.set(targetCardId, []);
+    mediaByParent.get(targetCardId).push(entry);
   }
 
   let parentPagesUpdated = 0;
@@ -497,8 +583,9 @@ function importDevProtoCards(options = {}) {
     const page = pageByCardId.get(parentId);
     if (!page) continue;
     entries.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+    const dedupedEntries = dedupeMediaEntries(entries);
     const raw = fs.readFileSync(page.file, 'utf8');
-    const next = upsertGeneratedSection(raw, 'HAPA_DEV_PROTO_MEDIA', parentMediaSection(parentId, entries, page.file, wikiRoot));
+    const next = upsertGeneratedSection(raw, 'HAPA_DEV_PROTO_MEDIA', parentMediaSection(parentId, dedupedEntries, page.file, wikiRoot));
     if (writeIfChanged(page.file, next)) parentPagesUpdated += 1;
   }
 
@@ -518,6 +605,8 @@ function importDevProtoCards(options = {}) {
     dbPath,
     rowsScanned: rows.length,
     mediaRecords: mediaEntries.length,
+    uniqueMediaAssets: sourceToAsset.size,
+    mediaRecordsWithEmbeddedMetadata: metadataExtracted,
     assetsCopied,
     parentPagesWithMedia: mediaByParent.size,
     parentPagesUpdated,
@@ -547,4 +636,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { importDevProtoCards, normalizeLocalPath, assetRelForSource, upsertGeneratedSection };
+module.exports = { importDevProtoCards, normalizeLocalPath, assetRelForSource, upsertGeneratedSection, extractMediaMetadata };

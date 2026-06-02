@@ -410,7 +410,7 @@ select { width: 100%; padding: 8px; }
 canvas { width: 100%; background: #050a13; border: 1px solid var(--line); border-radius: 8px; }
 mark { background: #66531c; color: #fff1b8; padding: 0 2px; }
 
-.portal-container, .timeline-container, .sub-home-container { display: flex; flex-direction: column; gap: 24px; }
+.portal-container, .protocols-container, .timeline-container, .sub-home-container { display: flex; flex-direction: column; gap: 24px; }
 .portal-header, .timeline-header {
   border: 1px solid var(--line);
   border-left: 4px solid var(--blue);
@@ -426,7 +426,7 @@ mark { background: #66531c; color: #fff1b8; padding: 0 2px; }
   letter-spacing: 0;
 }
 .portal-header p, .timeline-header p, .cards-hero p { margin: 0; color: var(--muted); }
-.portal-grid, .sub-home-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(286px, 1fr)); gap: 14px; }
+.portal-grid, .protocols-grid, .sub-home-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(286px, 1fr)); gap: 14px; }
 .portal-card, .sub-home-page-card, .timeline-event-card {
   background: rgba(16,25,42,0.66);
   border: 1px solid var(--line);
@@ -445,8 +445,10 @@ mark { background: #66531c; color: #fff1b8; padding: 0 2px; }
 .portal-card.names { border-left-color: var(--blue); }
 .portal-card.nodes { border-left-color: var(--green); }
 .portal-card.cards { border-left-color: var(--gold); }
+.portal-card.protocols { border-left-color: var(--hapa-success); }
 .portal-card.systems { border-left-color: var(--hapa-violet); }
 .portal-card.development { border-left-color: #ffaa54; }
+.protocols-header { border-left-color: var(--hapa-success); }
 .portal-card-header, .page-card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
 .portal-card-title, .page-card-title { font-size: 15px; font-weight: 850; color: #fff; }
 .portal-card-badge, .page-status-badge, .sub-home-hero-badge {
@@ -874,6 +876,7 @@ body.card-window-mode .topbar {
   gap: 6px;
 }
 body.card-window-mode #togglePortal,
+body.card-window-mode #toggleProtocols,
 body.card-window-mode #toggleCards,
 body.card-window-mode #toggleMusic,
 body.card-window-mode #toggleTimeline,

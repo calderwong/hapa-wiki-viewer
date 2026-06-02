@@ -149,6 +149,19 @@ const PORTAL_SECTIONS = [
     ]
   },
   {
+    id: 'protocols',
+    title: 'Protocols',
+    badge: 'Operating Cards',
+    desc: 'First-class runbooks, protocol cards, flow explainers, and sequential passes for repeatable Hapa work.',
+    slugs: ['Protocols/Index', 'Cards/Protocol Cards/Index', 'Operations/Hapa Protocol Standards', 'Operations/Hapa Sequential Pass Protocol'],
+    links: [
+      { label: 'Protocols Index', slug: 'Protocols/Index' },
+      { label: 'Protocol Cards', slug: 'Cards/Protocol Cards/Index' },
+      { label: 'Protocol Standards', slug: 'Operations/Hapa Protocol Standards' },
+      { label: 'Sequential Pass Triad', slug: 'Operations/Hapa Sequential Pass Protocol' }
+    ]
+  },
+  {
     id: 'systems',
     title: 'Systems & Protocols',
     badge: 'Operational Specs',
@@ -178,6 +191,7 @@ function switchView(viewName) {
   
   // Hide all view sections
   el('portalView').style.display = 'none';
+  el('protocolsView').style.display = 'none';
   el('cardsView').style.display = 'none';
   el('musicView').style.display = 'none';
   el('timelineView').style.display = 'none';
@@ -185,6 +199,7 @@ function switchView(viewName) {
   
   // Deactivate all tab buttons
   el('togglePortal').classList.remove('active');
+  el('toggleProtocols').classList.remove('active');
   el('toggleCards').classList.remove('active');
   el('toggleMusic').classList.remove('active');
   el('toggleTimeline').classList.remove('active');
@@ -193,6 +208,10 @@ function switchView(viewName) {
   if (viewName === 'portal') {
     el('portalView').style.display = 'block';
     el('togglePortal').classList.add('active');
+  } else if (viewName === 'protocols') {
+    el('protocolsView').style.display = 'block';
+    el('toggleProtocols').classList.add('active');
+    renderProtocolsView();
   } else if (viewName === 'cards') {
     el('cardsView').style.display = 'block';
     el('toggleCards').classList.add('active');
@@ -247,6 +266,14 @@ const SECTION_EXPLANATIONS = {
     icon: 'CV',
     accentColor: '#f4c35c',
     sectionKey: 'Cards'
+  },
+  protocols: {
+    title: 'Protocols',
+    subtitle: 'Executable runbooks, cardized methods, and sequential passes',
+    explanation: 'Protocols define how Hapa work is run, checked, taught, and written back. This section promotes the sequential pass triad, primary operating standards, and Protocol Cards into a navigable first-class layer alongside canon, nodes, systems, and cards.',
+    icon: 'PR',
+    accentColor: '#00d68f',
+    sectionKey: 'Protocols'
   },
   systems: {
     title: 'Systems & Protocols',
@@ -431,6 +458,7 @@ function renderPortal() {
     else if (s.id === 'names') count = wiki.facets?.sections?.['Names'] || 0;
     else if (s.id === 'nodes') count = wiki.facets?.sections?.['Nodes'] || 0;
     else if (s.id === 'cards') count = wiki.facets?.sections?.['Cards'] || 0;
+    else if (s.id === 'protocols') count = getProtocolPages().length || wiki.facets?.sections?.['Protocols'] || 0;
     else if (s.id === 'systems') count = wiki.facets?.sections?.['Systems'] || 0;
     else if (s.id === 'development') count = wiki.facets?.sections?.['Development'] || 0;
     
@@ -468,6 +496,166 @@ function renderPortal() {
       const slug = btn.dataset.slug;
       if (slug) openPage(slug);
     };
+  });
+}
+
+const PROTOCOL_BUCKETS = [
+  {
+    id: 'sequential',
+    title: 'Sequential Pass Triad',
+    badge: '3 Passes',
+    desc: 'For The Throat, Every Which Way, and With Flair as one ordered operating lane.',
+    slugs: [
+      'Operations/Hapa Sequential Pass Protocol',
+      'Operations/Flow Explainers/Hapa Sequential Pass Triad',
+      'Cards/Protocol Cards/For The Throat',
+      'Cards/Protocol Cards/Every Which Way',
+      'Cards/Protocol Cards/With Flair'
+    ],
+    match: page => /sequential|for the throat|every which way|with flair/i.test(`${page.slug} ${page.title} ${page.searchText}`)
+  },
+  {
+    id: 'cards',
+    title: 'Protocol Cards',
+    badge: 'Cards',
+    desc: 'Playable cards that compress standards, flows, gates, and writeback rules into retrievable units.',
+    slugs: ['Cards/Protocol Cards/Index'],
+    match: page => page.slug.startsWith('Cards/Protocol Cards')
+  },
+  {
+    id: 'primary',
+    title: 'Primary Hapa Protocols',
+    badge: 'Canon',
+    desc: 'Standards for parity, memory, sharpening, lineage, agent harnesses, and inter-node flow control.',
+    slugs: [
+      'Operations/Hapa Protocol Standards',
+      'Operations/Hapa Flow Explainer Protocol',
+      'Cards/Protocol Cards/Protocol Spine UI API CLI Parity',
+      'Cards/Protocol Cards/Roll The Tapes Sovereign Memory',
+      'Cards/Protocol Cards/Continuous Sharpening Bruce Lee Compression'
+    ],
+    match: page => /protocol standards|flow explainer protocol|parity|sovereign memory|sharpening|lineage|harness|inter node/i.test(`${page.slug} ${page.title} ${page.searchText}`)
+  },
+  {
+    id: 'operations',
+    title: 'Operations Protocols',
+    badge: 'Ops',
+    desc: 'Overwatch and board-keeper procedures for claims, handoffs, validation, and node status truth.',
+    slugs: [
+      'Operations/Overwatch Development Protocols and Standards',
+      'Operations/Overwatch Agent Identity and Task Protocol',
+      'Operations/Flow Explainers/Hapa Board Keeper'
+    ],
+    match: page => page.section === 'Operations' && /protocol|keeper|overwatch|task|validation/i.test(`${page.slug} ${page.title} ${page.searchText}`)
+  }
+];
+
+function getProtocolPages() {
+  if (!wiki) return [];
+  const explicitSlugs = new Set(PROTOCOL_BUCKETS.flatMap(bucket => bucket.slugs));
+  return wiki.orderedSlugs
+    .map(slug => wiki.pages[slug])
+    .filter(page => {
+      if (!page) return false;
+      if (page.section === 'Protocols') return true;
+      if (page.slug.startsWith('Cards/Protocol Cards')) return true;
+      if (explicitSlugs.has(page.slug)) return true;
+      const tags = (page.tags || []).join(' ');
+      return /protocol/i.test(`${page.slug} ${page.title} ${page.type} ${page.kind} ${tags}`);
+    });
+}
+
+function uniquePages(pages) {
+  const seen = new Set();
+  return pages.filter(page => {
+    if (!page || seen.has(page.slug)) return false;
+    seen.add(page.slug);
+    return true;
+  });
+}
+
+function bucketProtocolPages(bucket, allPages) {
+  const explicit = bucket.slugs.map(slug => wiki.pages[slug]).filter(Boolean);
+  const matched = allPages.filter(page => bucket.match(page));
+  return uniquePages([...explicit, ...matched]);
+}
+
+function renderProtocolPageCard(page) {
+  const card = document.createElement('div');
+  card.className = 'sub-home-page-card';
+  card.style.borderLeftColor = '#00d68f';
+  const tags = page.tags || [];
+  card.innerHTML = `
+    <div class="page-card-header">
+      <h3 class="page-card-title">${escapeHtml(page.title)}</h3>
+      ${page.status ? `<span class="page-status-badge">${escapeHtml(page.status)}</span>` : ''}
+    </div>
+    <p class="page-card-summary">${escapeHtml(page.summary || '')}</p>
+    ${tags.length ? `<div class="page-card-tags">${tags.slice(0, 3).map(tag => `<span class="tag-chip">#${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+    <div class="page-card-footer">
+      <span>${escapeHtml(page.section || 'Root')}</span>
+      <span class="divider">·</span>
+      <span>${escapeHtml(page.kind || page.type || 'Page')}</span>
+    </div>
+  `;
+  card.onclick = () => openPage(page.slug);
+  return card;
+}
+
+function renderProtocolsView() {
+  if (!wiki) return;
+  const container = el('protocolsView');
+  container.innerHTML = '';
+  const allPages = getProtocolPages();
+
+  const wrap = document.createElement('div');
+  wrap.className = 'portal-container protocols-container';
+  wrap.innerHTML = `
+    <div class="portal-header protocols-header">
+      <h1>Protocols</h1>
+      <p>${allPages.length.toLocaleString()} protocol pages across runbooks, cards, standards, and flow explainers</p>
+    </div>
+  `;
+
+  const grid = document.createElement('div');
+  grid.className = 'portal-grid protocols-grid';
+  for (const bucket of PROTOCOL_BUCKETS) {
+    const pages = bucketProtocolPages(bucket, allPages);
+    const card = document.createElement('div');
+    card.className = `portal-card protocols ${bucket.id}`;
+    const linksHtml = pages.slice(0, 4).map(page => `<button class="portal-link" data-protocol-slug="${escapeHtml(page.slug)}">${escapeHtml(page.title)}</button>`).join('');
+    card.innerHTML = `
+      <div class="portal-card-header">
+        <div class="portal-card-title">${escapeHtml(bucket.title)}</div>
+        <div class="portal-card-badge">${pages.length} pages</div>
+      </div>
+      <div class="portal-card-desc">${escapeHtml(bucket.desc)}</div>
+      <div class="portal-card-links">${linksHtml}</div>
+    `;
+    card.onclick = ev => {
+      if (ev.target.tagName === 'BUTTON' || ev.target.closest('button')) return;
+      const target = pages[0]?.slug || 'Protocols/Index';
+      if (target) openPage(target);
+    };
+    grid.appendChild(card);
+  }
+  wrap.appendChild(grid);
+
+  const groupWrap = document.createElement('div');
+  groupWrap.className = 'sub-home-groups';
+  const group = document.createElement('div');
+  group.className = 'sub-home-group';
+  group.innerHTML = `<h2 class="sub-home-group-title">Protocol Pages (${allPages.length})</h2>`;
+  const pageGrid = document.createElement('div');
+  pageGrid.className = 'sub-home-card-grid';
+  uniquePages(allPages).slice(0, 80).forEach(page => pageGrid.appendChild(renderProtocolPageCard(page)));
+  group.appendChild(pageGrid);
+  groupWrap.appendChild(group);
+  wrap.appendChild(groupWrap);
+
+  container.appendChild(wrap);
+  container.querySelectorAll('[data-protocol-slug]').forEach(btn => {
+    btn.onclick = () => openPage(btn.dataset.protocolSlug);
   });
 }
 
@@ -1833,7 +2021,7 @@ function setupFilters() {
   fillSelect('kindFilter', wiki.facets?.kinds, 'All kinds');
   fillSelect('statusFilter', wiki.facets?.statuses, 'All statuses');
   const quick = el('quickbar'); quick.innerHTML = '';
-  ['Names','Nodes','Cards','Canon','Systems','Development'].forEach(section => {
+  ['Protocols','Names','Nodes','Cards','Canon','Systems','Development'].forEach(section => {
     if (!wiki.facets?.sections?.[section]) return;
     const chip = document.createElement('button'); chip.className='chip'; chip.textContent = `${section} ${wiki.facets.sections[section]}`;
     chip.onclick = () => { el('sectionFilter').value = section; renderTree(el('search').value); };
@@ -1913,6 +2101,7 @@ el('search').addEventListener('input', e => renderTree(e.target.value));
 el('cardDensityToggle').onclick = toggleCardDensity;
 el('musicSearch').addEventListener('input', renderMusicLibrary);
 el('randomPage').onclick = randomOpen;
+el('discoverProtocols').onclick = () => setSection('Protocols');
 el('discoverNodes').onclick = () => setSection('Nodes');
 el('discoverNames').onclick = () => setSection('Names');
 el('discoverCards').onclick = () => setSection('Cards');
@@ -1936,6 +2125,7 @@ el('addComment').onclick = addCurrentComment;
 
 // Tab Navigation Controls
 el('togglePortal').onclick = () => { activePortalSection = null; el('crumb').textContent = 'Portal'; switchView('portal'); };
+el('toggleProtocols').onclick = () => { el('crumb').textContent = 'Protocols'; switchView('protocols'); };
 el('toggleCards').onclick = () => { el('crumb').textContent = 'Cards'; switchView('cards'); };
 el('toggleMusic').onclick = () => { el('crumb').textContent = 'Music'; switchView('music'); };
 el('toggleTimeline').onclick = () => switchView('timeline');

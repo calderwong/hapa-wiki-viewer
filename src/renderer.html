@@ -41,6 +41,7 @@
         <div class="quickbar" id="quickbar"></div>
         <div class="toolbar discoverbar">
           <button id="randomPage">Random</button>
+          <button id="discoverProtocols">Protocols</button>
           <button id="discoverNodes">Nodes</button>
           <button id="discoverNames">Names</button>
           <button id="discoverCards">Cards</button>
@@ -60,6 +61,7 @@
         <button id="showFinder">Show in Finder</button>
         <span class="tab-divider">|</span>
         <button id="togglePortal" class="view-tab active">Portal</button>
+        <button id="toggleProtocols" class="view-tab">Protocols</button>
         <button id="toggleCards" class="view-tab">Cards</button>
         <button id="toggleMusic" class="view-tab">Music</button>
         <button id="toggleTimeline" class="view-tab">Timeline</button>
@@ -73,6 +75,7 @@
         <span id="crumb"></span>
       </div>
       <section id="portalView" class="view-section"></section>
+      <section id="protocolsView" class="view-section" style="display:none;"></section>
       <section id="cardsView" class="view-section" style="display:none;">
         <div class="cards-shell">
           <div class="cards-hero">
@@ -239,5 +242,49 @@
   </div>
   <script src="soundEffects.js"></script>
   <script src="renderer.js"></script>
+
+  <script data-hapa-kanban-ingress="hapa-app-hapa-wiki-viewer">
+    (function () {
+      var projectId = 'hapa-app-hapa-wiki-viewer';
+      var boardUrl = 'http://127.0.0.1:5181/?project=' + encodeURIComponent(projectId);
+      function mountKanbanIngress() {
+        if (!document.body || document.querySelector('[data-hapa-kanban-link="' + projectId + '"]')) return;
+        var link = document.createElement('a');
+        link.href = boardUrl;
+        link.target = '_blank';
+        link.rel = 'noreferrer';
+        link.textContent = 'Kanban';
+        link.className = 'hapa-kanban-ingress';
+        link.dataset.hapaKanbanLink = projectId;
+        link.setAttribute('aria-label', 'Open Overwatch Kanban board for ' + projectId);
+        Object.assign(link.style, {
+          position: 'fixed',
+          right: '16px',
+          bottom: '16px',
+          zIndex: '2147483000',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '38px',
+          padding: '0 14px',
+          border: '1px solid rgba(55, 215, 255, 0.55)',
+          borderRadius: '8px',
+          background: 'rgba(2, 6, 23, 0.92)',
+          color: '#dffbff',
+          font: '700 12px/1.1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+          letterSpacing: '0',
+          textDecoration: 'none',
+          boxShadow: '0 0 18px rgba(55, 215, 255, 0.22)',
+          backdropFilter: 'blur(10px)'
+        });
+        document.body.appendChild(link);
+      }
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', mountKanbanIngress, { once: true });
+      } else {
+        mountKanbanIngress();
+      }
+    }());
+  </script>
 </body>
 </html>

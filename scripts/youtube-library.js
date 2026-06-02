@@ -8,7 +8,7 @@ const { DatabaseSync } = require('node:sqlite');
 
 const { buildWikiIndex } = require('../src/wikiIndexer');
 
-const DEFAULT_WIKI_ROOT = '/Users/calderwong/Desktop/Hapa_Worldbuilding_Wiki';
+const DEFAULT_WIKI_ROOT = path.join(os.homedir(), 'Desktop', 'Hapa_Worldbuilding_Wiki');
 const DEFAULT_DATA_ROOT = 'Raw/YouTube';
 const DEFAULT_OPENAI_MODEL = process.env.HAPA_YOUTUBE_OPENAI_MODEL || 'gpt-4o-mini';
 
@@ -81,7 +81,7 @@ function createContext(options = {}) {
   ensureDir(rawDir);
   ensureDir(reportsDir);
   const db = new DatabaseSync(dbPath);
-  db.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;');
+  db.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 15000;');
   migrate(db);
   return { wikiRoot, dataRoot, dbPath, transcriptsDir, rawDir, reportsDir, db };
 }
@@ -253,18 +253,21 @@ function parseTakeoutJson(raw, sourceName = 'watch-history.json') {
 }
 
 function parseTakeoutHtml(raw, sourceName = 'watch-history.html') {
-  const chunks = raw.split(/<div class="content-cell[^"]*">/i).slice(1);
+  const splitCells = raw.split(/<div class="outer-cell[^"]*">/i).slice(1);
+  const outerCells = splitCells.length ? splitCells : [raw];
   const events = [];
-  for (const chunk of chunks) {
-    const end = chunk.split(/<\/div>\s*<\/div>/i)[0] || chunk;
-    const links = [...end.matchAll(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/gis)];
+  for (const outer of outerCells) {
+    const primaryMatch = outer.match(/<div class="content-cell[^"]*mdl-typography--body-1[^"]*">([\s\S]*?)<\/div>/i);
+    if (!primaryMatch) continue;
+    const primary = primaryMatch[1];
+    const links = [...primary.matchAll(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/gis)];
     if (!links.length) continue;
     const videoUrl = htmlDecode(links[0][1]);
     const videoId = extractVideoId(videoUrl);
     if (!videoId) continue;
     const channelUrl = links[1] ? htmlDecode(links[1][1]) : '';
     const channelName = links[1] ? stripTags(links[1][2]) : '';
-    const text = stripTags(end);
+    const text = stripTags(primary);
     const watchedAt = text
       .replace(/^Watched\s+/i, '')
       .replace(stripTags(links[0][2]), '')
@@ -277,7 +280,7 @@ function parseTakeoutHtml(raw, sourceName = 'watch-history.html') {
       channelName,
       channelUrl,
       source: sourceName,
-      raw: { html: end.slice(0, 2000) },
+      raw: { html: primary.slice(0, 2000), isAd: /From Google Ads/i.test(outer) },
     });
   }
   return events;
@@ -305,6 +308,16 @@ function readTakeoutSource(sourcePath) {
       .find(name => /YouTube and YouTube Music\/history\/watch-history\.(json|html)$/i.test(name));
     if (!file) throw new Error('Could not find YouTube watch-history.json/html in Takeout zip');
     const extracted = spawnSync('unzip', ['-p', absolute, file], { encoding: 'utf8', maxBuffer: 300 * 1024 * 1024 });
+    if (extracted.status !== 0) throw new Error(`Could not extract ${file}: ${extracted.stderr || extracted.stdout}`);
+    return { name: file, raw: extracted.stdout };
+  }
+  if (/\.(tgz|tar\.gz)$/i.test(absolute)) {
+    const listing = spawnSync('tar', ['-tzf', absolute], { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 });
+    if (listing.status !== 0) throw new Error(`Could not list tarball: ${listing.stderr || listing.stdout}`);
+    const file = listing.stdout.split(/\r?\n/)
+      .find(name => /YouTube and YouTube Music\/history\/watch-history\.(json|html)$/i.test(name));
+    if (!file) throw new Error('Could not find YouTube watch-history.json/html in Takeout tarball');
+    const extracted = spawnSync('tar', ['-xOzf', absolute, file], { encoding: 'utf8', maxBuffer: 300 * 1024 * 1024 });
     if (extracted.status !== 0) throw new Error(`Could not extract ${file}: ${extracted.stderr || extracted.stdout}`);
     return { name: file, raw: extracted.stdout };
   }
@@ -438,10 +451,12 @@ function queueJob(db, kind, targetType, targetId, payload = {}, priority = 100) 
 
 function queueAll(ctx, options = {}) {
   const limit = Number(options.limit || 0);
-  const videos = ctx.db.prepare(`SELECT id, url, title, channel_id FROM videos ORDER BY last_watched_at DESC LIMIT ?`).all(limit || 1000000000);
+  const videos = ctx.db.prepare(`SELECT id, url, title, channel_id, raw_json FROM videos ORDER BY last_watched_at DESC LIMIT ?`).all(limit || 1000000000);
   const channels = ctx.db.prepare(`SELECT id, name, url FROM channels ORDER BY name LIMIT ?`).all(limit || 1000000000);
   for (const video of videos) {
-    queueJob(ctx.db, 'transcript', 'video', video.id, { url: video.url, title: video.title }, 50);
+    const raw = fromJson(video.raw_json, {});
+    queueJob(ctx.db, 'video_metadata', 'video', video.id, { url: video.url, title: video.title }, 40);
+    if (!raw?.isAd) queueJob(ctx.db, 'transcript', 'video', video.id, { url: video.url, title: video.title }, 50);
     queueJob(ctx.db, 'enrichment', 'video', video.id, { title: video.title }, 80);
     queueJob(ctx.db, 'wiki_video', 'video', video.id, { title: video.title }, 120);
   }
@@ -450,6 +465,83 @@ function queueAll(ctx, options = {}) {
     queueJob(ctx.db, 'wiki_creator', 'channel', channel.id, { name: channel.name }, 130);
   }
   return { queuedVideos: videos.length, queuedChannels: channels.length };
+}
+
+function compactVideoMetadata(meta) {
+  if (!meta || typeof meta !== 'object') return {};
+  return {
+    id: meta.id,
+    title: meta.title,
+    fulltitle: meta.fulltitle,
+    description: meta.description,
+    uploader: meta.uploader,
+    uploader_id: meta.uploader_id,
+    uploader_url: meta.uploader_url,
+    channel: meta.channel,
+    channel_id: meta.channel_id,
+    channel_url: meta.channel_url,
+    duration: meta.duration,
+    duration_string: meta.duration_string,
+    view_count: meta.view_count,
+    like_count: meta.like_count,
+    comment_count: meta.comment_count,
+    categories: meta.categories,
+    tags: meta.tags,
+    upload_date: meta.upload_date,
+    timestamp: meta.timestamp,
+    availability: meta.availability,
+    webpage_url: meta.webpage_url,
+    thumbnail: meta.thumbnail,
+  };
+}
+
+function runVideoMetadataJob(ctx, job) {
+  const video = ctx.db.prepare('SELECT * FROM videos WHERE id = ?').get(job.target_id);
+  if (!video) {
+    markJob(ctx.db, job.id, 'skipped', { lastError: 'Video not found' });
+    return { status: 'skipped', id: job.target_id };
+  }
+  const ytDlp = resolveYtDlp();
+  if (!ytDlp) {
+    markJob(ctx.db, job.id, 'blocked', { lastError: 'yt-dlp is not installed. Install it or set YTDLP_PATH, then rerun youtube:metadata.' });
+    return { status: 'blocked', id: video.id };
+  }
+  markJob(ctx.db, job.id, 'running');
+  const result = spawnSync(ytDlp, ['--dump-json', '--skip-download', '--no-playlist', video.url], {
+    encoding: 'utf8',
+    maxBuffer: 80 * 1024 * 1024,
+    timeout: Number(process.env.HAPA_YOUTUBE_YTDLP_TIMEOUT_MS || 180000),
+  });
+  if (result.status !== 0 || !result.stdout.trim()) {
+    const error = (result.stderr || result.stdout || 'yt-dlp metadata fetch failed').slice(0, 2000);
+    markJob(ctx.db, job.id, 'failed', { lastError: error });
+    return { status: 'failed', id: video.id, error };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(result.stdout.split(/\r?\n/).filter(Boolean).at(-1));
+  } catch (error) {
+    markJob(ctx.db, job.id, 'failed', { lastError: `Could not parse yt-dlp metadata JSON: ${error.message}` });
+    return { status: 'failed', id: video.id, error: error.message };
+  }
+  const metadata = compactVideoMetadata(parsed);
+  const title = metadata.title || video.title;
+  const channelName = metadata.channel || metadata.uploader || video.channel_name || '';
+  const channelUrl = metadata.channel_url || metadata.uploader_url || video.channel_url || '';
+  const channelId = metadata.channel_id || video.channel_id || extractChannelId(channelUrl, channelName);
+  if (channelName || channelUrl) upsertChannel(ctx.db, { channelName, channelUrl });
+  ctx.db.prepare(`
+    UPDATE videos SET
+      title = COALESCE(NULLIF(?, ''), title),
+      channel_id = COALESCE(NULLIF(?, ''), channel_id),
+      channel_name = COALESCE(NULLIF(?, ''), channel_name),
+      channel_url = COALESCE(NULLIF(?, ''), channel_url),
+      metadata_json = ?,
+      updated_at = ?
+    WHERE id = ?
+  `).run(title, channelId, channelName, channelUrl, toJson(metadata), now(), video.id);
+  markJob(ctx.db, job.id, 'succeeded');
+  return { status: 'succeeded', id: video.id, title: metadata.title || '', channel: channelName || '' };
 }
 
 function getNextJobs(db, kind, limit) {
@@ -461,20 +553,43 @@ function getNextJobs(db, kind, limit) {
   `).all(kind, limit);
 }
 
+function isSqliteBusy(error) {
+  return /database is locked|SQLITE_BUSY/i.test(String(error && (error.message || error)));
+}
+
+function sleepMs(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function withSqliteRetry(action, options = {}) {
+  const attempts = Number(options.attempts || 12);
+  const baseDelayMs = Number(options.baseDelayMs || 100);
+  for (let i = 0; i < attempts; i += 1) {
+    try {
+      return action();
+    } catch (error) {
+      if (!isSqliteBusy(error) || i === attempts - 1) throw error;
+      sleepMs(baseDelayMs * (i + 1));
+    }
+  }
+}
+
 function markJob(db, id, status, fields = {}) {
-  const stamp = now();
-  const current = db.prepare('SELECT attempts FROM jobs WHERE id = ?').get(id);
-  const attempts = status === 'running' ? Number(current?.attempts || 0) + 1 : Number(current?.attempts || 0);
-  db.prepare(`
-    UPDATE jobs SET
-      status = ?,
-      attempts = ?,
-      last_error = ?,
-      updated_at = ?,
-      started_at = CASE WHEN ? = 'running' THEN ? ELSE started_at END,
-      completed_at = CASE WHEN ? IN ('succeeded', 'failed', 'blocked', 'skipped') THEN ? ELSE completed_at END
-    WHERE id = ?
-  `).run(status, attempts, fields.lastError || null, stamp, status, stamp, status, stamp, id);
+  return withSqliteRetry(() => {
+    const stamp = now();
+    const current = db.prepare('SELECT attempts FROM jobs WHERE id = ?').get(id);
+    const attempts = status === 'running' ? Number(current?.attempts || 0) + 1 : Number(current?.attempts || 0);
+    return db.prepare(`
+      UPDATE jobs SET
+        status = ?,
+        attempts = ?,
+        last_error = ?,
+        updated_at = ?,
+        started_at = CASE WHEN ? = 'running' THEN ? ELSE started_at END,
+        completed_at = CASE WHEN ? IN ('succeeded', 'failed', 'blocked', 'skipped') THEN ? ELSE completed_at END
+      WHERE id = ?
+    `).run(status, attempts, fields.lastError || null, stamp, status, stamp, status, stamp, id);
+  });
 }
 
 function commandExists(command) {
@@ -520,6 +635,41 @@ function vttToText(raw) {
   return out.join('\n');
 }
 
+function fetchTranscriptWithPython(videoId) {
+  const script = `
+import json, sys
+from youtube_transcript_api import YouTubeTranscriptApi
+video_id = sys.argv[1]
+api = YouTubeTranscriptApi()
+try:
+    transcript = api.fetch(video_id, languages=['en'])
+except Exception:
+    transcript = api.fetch(video_id)
+rows = []
+for item in transcript:
+    if hasattr(item, 'text'):
+        rows.append({'text': item.text, 'start': item.start, 'duration': item.duration})
+    else:
+        rows.append(dict(item))
+print(json.dumps({'language': getattr(transcript, 'language_code', 'en'), 'rows': rows}, ensure_ascii=False))
+`;
+  const result = spawnSync('python3', ['-c', script, videoId], {
+    encoding: 'utf8',
+    maxBuffer: 80 * 1024 * 1024,
+    timeout: Number(process.env.HAPA_YOUTUBE_TRANSCRIPT_API_TIMEOUT_MS || 180000),
+  });
+  if (result.status !== 0 || !result.stdout.trim()) {
+    throw new Error((result.stderr || result.stdout || 'youtube-transcript-api returned no transcript').slice(0, 2000));
+  }
+  const payload = JSON.parse(result.stdout.trim().split(/\r?\n/).at(-1));
+  const rows = Array.isArray(payload.rows) ? payload.rows : [];
+  return {
+    language: payload.language || 'en',
+    raw: JSON.stringify(rows, null, 2),
+    text: rows.map(row => String(row.text || '').trim()).filter(Boolean).join('\n'),
+  };
+}
+
 function runTranscriptJob(ctx, job) {
   const video = ctx.db.prepare('SELECT * FROM videos WHERE id = ?').get(job.target_id);
   if (!video) {
@@ -547,15 +697,40 @@ function runTranscriptJob(ctx, job) {
   const result = spawnSync(ytDlp, args, { encoding: 'utf8', maxBuffer: 80 * 1024 * 1024, timeout: Number(process.env.HAPA_YOUTUBE_YTDLP_TIMEOUT_MS || 180000) });
   const files = fs.readdirSync(tmp).filter(file => file.endsWith('.vtt'));
   if (result.status !== 0 || !files.length) {
-    const error = (result.stderr || result.stdout || 'No transcript subtitles were available').slice(0, 2000);
-    ctx.db.prepare(`
-      INSERT INTO transcripts (video_id, source, error, fetched_at)
-      VALUES (?, 'yt-dlp', ?, ?)
-      ON CONFLICT(video_id) DO UPDATE SET error = excluded.error, fetched_at = excluded.fetched_at
-    `).run(video.id, error, now());
-    ctx.db.prepare('UPDATE videos SET transcript_status = ?, updated_at = ? WHERE id = ?').run('failed', now(), video.id);
-    markJob(ctx.db, job.id, 'failed', { lastError: error });
-    return { status: 'failed', id: video.id, error };
+    const ytDlpError = (result.stderr || result.stdout || 'No transcript subtitles were available').slice(0, 2000);
+    try {
+      const fallback = fetchTranscriptWithPython(video.id);
+      const safe = `${video.id}-${stableHash(video.title, 8)}`;
+      const rawPath = path.join(ctx.transcriptsDir, `${safe}.transcript-api.json`);
+      const textPath = path.join(ctx.transcriptsDir, `${safe}.txt`);
+      fs.writeFileSync(rawPath, fallback.raw);
+      fs.writeFileSync(textPath, fallback.text);
+      ctx.db.prepare(`
+        INSERT INTO transcripts (video_id, source, language, text_path, raw_path, char_count, fetched_at, error)
+        VALUES (?, 'youtube-transcript-api', ?, ?, ?, ?, ?, NULL)
+        ON CONFLICT(video_id) DO UPDATE SET
+          source = excluded.source,
+          language = excluded.language,
+          text_path = excluded.text_path,
+          raw_path = excluded.raw_path,
+          char_count = excluded.char_count,
+          fetched_at = excluded.fetched_at,
+          error = NULL
+      `).run(video.id, fallback.language, textPath, rawPath, fallback.text.length, now());
+      ctx.db.prepare('UPDATE videos SET transcript_status = ?, updated_at = ? WHERE id = ?').run('succeeded', now(), video.id);
+      markJob(ctx.db, job.id, 'succeeded');
+      return { status: 'succeeded', id: video.id, chars: fallback.text.length, source: 'youtube-transcript-api', fallbackFrom: 'yt-dlp', ytDlpError };
+    } catch (fallbackError) {
+      const error = `${ytDlpError}\nFallback youtube-transcript-api failed: ${fallbackError.message}`.slice(0, 2000);
+      ctx.db.prepare(`
+        INSERT INTO transcripts (video_id, source, error, fetched_at)
+        VALUES (?, 'yt-dlp', ?, ?)
+        ON CONFLICT(video_id) DO UPDATE SET error = excluded.error, fetched_at = excluded.fetched_at
+      `).run(video.id, error, now());
+      ctx.db.prepare('UPDATE videos SET transcript_status = ?, updated_at = ? WHERE id = ?').run('failed', now(), video.id);
+      markJob(ctx.db, job.id, 'failed', { lastError: error });
+      return { status: 'failed', id: video.id, error };
+    }
   }
   const rawFile = path.join(tmp, files[0]);
   const raw = fs.readFileSync(rawFile, 'utf8');
@@ -826,7 +1001,7 @@ function writeVideoPage(ctx, video) {
     : '- No wiki matches yet.';
   const content = `---\ntitle: ${JSON.stringify(video.title)}\ntype: youtube-video-source\nstatus: imported\nsource_video_id: ${JSON.stringify(video.id)}\nchannel: ${JSON.stringify(video.channel_name || '')}\ntags: [youtube, shared-library, attribution]\n---\n# ${video.title}\n\n## Source\n- URL: ${video.url}\n- Creator: ${video.channel_name || 'Unknown'}\n- Channel: ${video.channel_url || ''}\n- First watched: ${video.first_watched_at || ''}\n- Last watched: ${video.last_watched_at || ''}\n- Watch count: ${video.watch_count || 0}\n- Transcript: ${transcript?.text_path ? transcript.text_path : 'not available yet'}\n\n## Summary\n${markdownEscape(video.summary || 'Queued for enrichment.')}\n\n## Category\n${markdownEscape(video.category || 'Uncategorized')}\n\n## Topics\n${topics.length ? topics.map(topic => `- ${topic}`).join('\n') : '- None yet.'}\n\n## Hapa Wiki Relations\n${matchLines}\n\n## Attribution Notes\n${markdownEscape(video.attribution_note || 'Imported as a watched source. Review before treating as a direct influence.')}\n\n## Recent Watch Events\n${watched.length ? watched.map(row => `- ${row.watched_at || 'unknown time'}`).join('\n') : '- No watch events recorded.'}\n`;
   fs.writeFileSync(file, content);
-  ctx.db.prepare('UPDATE videos SET wiki_status = ?, updated_at = ? WHERE id = ?').run('succeeded', now(), video.id);
+  withSqliteRetry(() => ctx.db.prepare('UPDATE videos SET wiki_status = ?, updated_at = ? WHERE id = ?').run('succeeded', now(), video.id));
   return file;
 }
 
@@ -837,7 +1012,7 @@ function writeCreatorPage(ctx, channel) {
   const otherVideos = fromJson(channel.other_videos_json, []);
   const content = `---\ntitle: ${JSON.stringify(channel.name)}\ntype: youtube-creator-source\nstatus: imported\nsource_channel_id: ${JSON.stringify(channel.id)}\ntags: [youtube, creator, shared-library, attribution]\n---\n# ${channel.name}\n\n## Source\n- Channel URL: ${channel.url || ''}\n- Videos watched in history: ${videos.length}\n- Metadata status: ${channel.status || 'pending'}\n\n## Watched Videos\n${videos.length ? videos.map(video => `- [${video.title}](${video.url}) - ${video.last_watched_at || ''}`).join('\n') : '- None recorded yet.'}\n\n## Other Videos Sample\n${otherVideos.length ? otherVideos.map(video => `- [${video.title}](${video.url})`).join('\n') : '- No channel sample gathered yet.'}\n\n## Attribution Notes\nThis creator appeared in the imported YouTube watch history. Use this page to track references, influences, and credits as Hapa ideas are mapped back to source material.\n`;
   fs.writeFileSync(file, content);
-  ctx.db.prepare('UPDATE channels SET wiki_path = ?, updated_at = ? WHERE id = ?').run(relativeWikiPath(ctx, file), now(), channel.id);
+  withSqliteRetry(() => ctx.db.prepare('UPDATE channels SET wiki_path = ?, updated_at = ? WHERE id = ?').run(relativeWikiPath(ctx, file), now(), channel.id));
   return file;
 }
 
@@ -859,7 +1034,7 @@ function writeIndexPage(ctx) {
     ORDER BY last_watched_at DESC
     LIMIT 25
   `).all();
-  const content = `---\ntitle: YouTube Shared Library\ntype: source-library-index\nstatus: active\ntags: [youtube, shared-library, attribution]\n---\n# YouTube Shared Library\n\nThis index is generated from the local YouTube history datastore at \`${ctx.dbPath}\`.\n\nSee [[Development/YouTube Shared Library Pipeline|YouTube Shared Library Pipeline]] for the operating notes.\n\n## Status\n- Videos: ${status.videos}\n- Watch events: ${status.watchEvents}\n- Creators: ${status.channels}\n- Transcript jobs pending: ${status.jobs.transcript?.pending || 0}\n- Enrichment jobs pending: ${status.jobs.enrichment?.pending || 0}\n- Wiki video jobs pending: ${status.jobs.wiki_video?.pending || 0}\n\n## Top Creators In Watch History\n${topChannels.length ? topChannels.map(row => `- [${row.channel_name}](${row.channel_url || '#'}) - ${row.n} watched videos`).join('\n') : '- No creators imported yet.'}\n\n## Recent Imported Videos\n${recent.length ? recent.map(row => `- [${row.title}](${row.url}) - ${row.channel_name || 'Unknown'} - ${row.category || 'Uncategorized'} - ${row.last_watched_at || ''}`).join('\n') : '- No videos imported yet.'}\n\n## Workflow\n1. Export YouTube watch history through Google Takeout.\n2. Run \`npm run youtube:import -- --path /path/to/takeout.zip\`.\n3. Run \`npm run youtube:queue\`.\n4. Run transcript, enrichment, creator, and wiki jobs in batches.\n`;
+  const content = `---\ntitle: YouTube Shared Library\ntype: source-library-index\nstatus: active\ntags: [youtube, shared-library, attribution]\n---\n# YouTube Shared Library\n\nThis index is generated from the local YouTube history datastore at \`${ctx.dbPath}\`.\n\nSee [[Development/YouTube Shared Library Pipeline|YouTube Shared Library Pipeline]] for the operating notes.\n\n## Status\n- Videos: ${status.videos}\n- Watch events: ${status.watchEvents}\n- Creators: ${status.channels}\n- Metadata jobs pending: ${status.jobs.video_metadata?.pending || 0}\n- Transcript jobs pending: ${status.jobs.transcript?.pending || 0}\n- Enrichment jobs pending: ${status.jobs.enrichment?.pending || 0}\n- Wiki video jobs pending: ${status.jobs.wiki_video?.pending || 0}\n\n## Top Creators In Watch History\n${topChannels.length ? topChannels.map(row => `- [${row.channel_name}](${row.channel_url || '#'}) - ${row.n} watched videos`).join('\n') : '- No creators imported yet.'}\n\n## Recent Imported Videos\n${recent.length ? recent.map(row => `- [${row.title}](${row.url}) - ${row.channel_name || 'Unknown'} - ${row.category || 'Uncategorized'} - ${row.last_watched_at || ''}`).join('\n') : '- No videos imported yet.'}\n\n## Workflow\n1. Export YouTube watch history through Google Takeout.\n2. Run \`npm run youtube:import -- --path /path/to/takeout.zip\`.\n3. Run \`npm run youtube:queue\`.\n4. Run transcript, enrichment, creator, and wiki jobs in batches.\n`;
   fs.writeFileSync(file, content);
   return file;
 }
@@ -933,7 +1108,7 @@ function getStatus(ctx) {
 
 function writeReadme(ctx) {
   const file = path.join(ctx.dataRoot, 'README.md');
-  const content = `# YouTube Shared Library Datastore\n\nThis folder stores the local Hapa YouTube learning library.\n\n- \`youtube-library.sqlite\` stores watch history metadata, creators, queues, relations, and enrichment state.\n- \`transcripts/\` stores local transcript text and raw caption files when transcript jobs succeed.\n- \`raw/\` is reserved for local source snapshots.\n- \`reports/\` is reserved for job reports and audits.\n\nPrimary commands from \`/Users/calderwong/Desktop/hapa-wiki-viewer\`:\n\n\`\`\`bash\nnpm run youtube:init\nnpm run youtube:import -- --path /path/to/takeout.zip\nnpm run youtube:queue\nnpm run youtube:transcripts -- --limit 25\nnpm run youtube:enrich -- --limit 25 --include-without-transcript\nnpm run youtube:creators -- --limit 25\nnpm run youtube:wiki -- --limit 50\nnpm run youtube:status\n\`\`\`\n\nFor full YouTube watch history, use Google Takeout and include YouTube and YouTube Music history. Browser history alone is not a complete YouTube watch history source.\n`;
+  const content = `# YouTube Shared Library Datastore\n\nThis folder stores the local Hapa YouTube learning library.\n\n- \`youtube-library.sqlite\` stores watch history metadata, creators, queues, relations, and enrichment state.\n- \`transcripts/\` stores local transcript text and raw caption files when transcript jobs succeed.\n- \`raw/\` is reserved for local source snapshots.\n- \`reports/\` is reserved for job reports and audits.\n\nPrimary commands from the \`hapa-wiki-viewer\` repository root:\n\n\`\`\`bash\nnpm run youtube:init\nnpm run youtube:import -- --path /path/to/takeout.zip\nnpm run youtube:queue\nnpm run youtube:metadata -- --limit 25\nnpm run youtube:transcripts -- --limit 25\nnpm run youtube:enrich -- --limit 25 --include-without-transcript\nnpm run youtube:creators -- --limit 25\nnpm run youtube:wiki -- --limit 50\nnpm run youtube:status\n\`\`\`\n\nFor full YouTube watch history, use Google Takeout and include YouTube and YouTube Music history. Browser history alone is not a complete YouTube watch history source.\n`;
   fs.writeFileSync(file, content);
   return file;
 }
@@ -954,6 +1129,7 @@ async function main() {
     if (!args.path) throw new Error('Usage: youtube-library.js import-takeout --path /path/to/takeout.zip');
     result = importTakeout(ctx, args.path);
   } else if (command === 'queue-all') result = queueAll(ctx, args);
+  else if (command === 'run-metadata') result = await runJobs(ctx, 'video_metadata', runVideoMetadataJob, args);
   else if (command === 'run-transcripts') result = await runJobs(ctx, 'transcript', runTranscriptJob, args);
   else if (command === 'run-enrichment') result = await runJobs(ctx, 'enrichment', enrichVideo, {
     ...args,
@@ -985,6 +1161,7 @@ module.exports = {
   parseTakeoutSource,
   importTakeout,
   queueAll,
+  runVideoMetadataJob,
   getStatus,
   exportWiki,
   initLibrary,
