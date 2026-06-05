@@ -91,14 +91,7 @@ Contributors may optionally opt into Bananas work-contribution tracking for attr
 
 <!-- HAPA-README-SCREENSHOT-2026-05-22 -->
 
-## Screenshot
 
-![hapa-wiki-viewer UI screenshot](docs/assets/screenshots/readme-hapa-wiki-viewer-static-fallback.png)
-
-Hapa Wiki Viewer renderer static-file fallback; Electron preload is required for the full app.
-
-
-<!-- HAPA-README-QUALITY-PASS-2026-05-22 -->
 
 ## Hapa ecosystem context
 
